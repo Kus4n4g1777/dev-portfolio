@@ -1,0 +1,40 @@
+version: "3.9"
+services:
+  backend:
+    build: ./dashboard-admin/backend
+    ports:
+      - "3001:3001"
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/dashboarddb
+    restart: unless-stopped
+
+  frontend:
+    build: ./dashboard-admin/frontend
+    ports:
+      - "4200:4200"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:4.4 # Changed from mongo:7 to mongo:4.4 due virtual machine compatibility issues
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
