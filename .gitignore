@@ -1,0 +1,50 @@
+# Node.js specific ignores (applies to backend, frontend, graphql-api, etc.)
+node_modules/
+dist/
+.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.yarn/
+
+# Docker specific ignores
+.dockerignore
+# Docker Compose build cache (if COMPOSE_BAKE is enabled)
+.docker/
+
+# Operating System specific ignores
+.DS_Store
+Thumbs.db
+
+# Editor/IDE specific ignores (common)
+.vscode/
+.idea/
+*.swp  # Vim swap files
+*.swo  # Vim swap files
+*.log
+
+# Build outputs for other languages/frameworks you might add
+# For C++
+build/
+bin/
+obj/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Unity WebGL (if you use it)
+Library/
+Temp/
+obj/
+Build/
+Assets/AssetStoreTools/
