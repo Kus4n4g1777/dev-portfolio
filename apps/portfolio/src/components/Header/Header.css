@@ -1,0 +1,11 @@
+/* Styles specific to the Header component */
+.nav-link {
+  transition-property: color;
+  transition-duration: 300ms;
+  color: #fff;
+  background-color: #CC8899
+}
+
+.nav-link:hover {
+  color: #06b6d4; /* A light cyan color for hover effect */
+}

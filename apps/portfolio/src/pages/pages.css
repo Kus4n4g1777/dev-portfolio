@@ -1,0 +1,4 @@
+/* This file contains shared styles for all pages */
+.page-container {
+  min-height: 100vh;
+}

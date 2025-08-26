@@ -1,0 +1,24 @@
+/* Styles for the BlogPostCard component */
+.blog-post-card {
+  background-color: #1f2937; /* bg-gray-800 */
+  padding: 1.5rem; /* p-6 */
+  border-radius: 0.5rem; /* rounded-lg */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-lg */
+  transition-property: box-shadow;
+  transition-duration: 300ms;
+}
+
+.blog-post-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(6, 182, 212, 0.3), 0 4px 6px -2px rgba(6, 182, 212, 0.2); /* hover:shadow-cyan-400 */
+}
+
+.blog-post-card h3 {
+  font-size: 1.5rem; /* text-2xl */
+  font-weight: 600; /* font-semibold */
+  color: #06b6d4; /* text-cyan-400 */
+  margin-bottom: 0.5rem; /* mb-2 */
+}
+
+.blog-post-card p {
+  color: #9ca3af; /* text-gray-400 */
+}

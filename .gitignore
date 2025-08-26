@@ -48,3 +48,8 @@ Temp/
 obj/
 Build/
 Assets/AssetStoreTools/
+
+# Flutter specific ignores
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
