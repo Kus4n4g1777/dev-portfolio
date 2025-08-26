@@ -1,40 +1,47 @@
-version: "3.9"
 services:
-  backend:
-    build: ./dashboard-admin/backend
-    ports:
-      - "3001:3001"
-    depends_on:
-      - mongo
-    environment:
-      - MONGO_URI=mongodb://mongo:27017/dashboarddb
-    restart: unless-stopped
-
-  frontend:
-    build: ./dashboard-admin/frontend
-    ports:
-      - "4200:4200"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-  mongo:
-    image: mongo:4.4 # Changed from mongo:7 to mongo:4.4 due virtual machine compatibility issues
-    container_name: mongodb
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    restart: unless-stopped
-
   nginx:
-    build: ./nginx
+    image: nginx:latest
+    container_name: nginx
+    restart: always
     ports:
-      - "80:80"
+      - "8080:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - portfolio_net
+
+  backend:
+    build: ./apps/dashboard-admin/backend/
+    container_name: dashboard_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/dashboard-admin/backend/:/app
     depends_on:
-      - frontend
-      - backend
-    restart: unless-stopped
+      - nginx
+      - db
+    env_file:
+      - ./.env # This is the line you need to add
+    networks:
+      - portfolio_net
+
+  db:
+    image: postgres:16-alpine
+    container_name: dashboard_db
+    restart: always
+    env_file:
+      - ./.env
+    volumes:
+      - portfolio_db:/var/lib/postgresql/data
+    networks:
+      - portfolio_net
+
+networks:
+  portfolio_net:
+    driver: bridge
 
 volumes:
-  mongo-data:
+  portfolio_db:
+    driver: local
