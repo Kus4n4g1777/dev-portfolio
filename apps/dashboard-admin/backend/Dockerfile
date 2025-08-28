@@ -1,23 +1,27 @@
-  # Use an official Python runtime as a parent image
-    # We're using a specific version for consistency.
-    FROM python:3.11-slim
+# Use an official Python runtime as a parent image
+FROM python:3.11-slim
 
-    # Set the working directory in the container
-    WORKDIR /app
+# Set the working directory in the container
+WORKDIR /app
 
-    # Copy the requirements file into the container
-    # We copy this first to leverage Docker's build cache.
-    COPY ./requirements.txt /app/requirements.txt
+# Install the PostgreSQL client tools for pg_isready
+RUN apt-get update && apt-get install -y postgresql-client && rm -rf /var/lib/apt/lists/*
 
-    # Install any dependencies
-    RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
+# Copy the requirements file and install dependencies first
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-    # Copy the rest of the application code into the container
-    COPY . /app
+# Copy the Alembic configuration and migration scripts
+# This is crucial for the migrations to run correctly
+COPY alembic.ini .
+COPY alembic ./alembic
 
-    # Expose the port the app runs on
-    EXPOSE 8000
+# Copy the entire application code, including the models and database connection
+# This ensures Alembic can find your models
+COPY . .
 
-    # Define the command to run the application
-    # We use the Gunicorn/Uvicorn pattern for production-ready deployments.
-    CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Expose the port the app runs on
+EXPOSE 8000
+
+# Set the startup script as the command
+CMD ["./run.sh"]

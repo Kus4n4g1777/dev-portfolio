@@ -7,11 +7,37 @@ services:
       - "8080:80"
       - "443:443"
     volumes:
+      # Correct volume mount for your nginx configuration
       - ./nginx/conf.d/:/etc/nginx/conf.d/
     networks:
       - portfolio_net
+    depends_on:
+      dashboard_frontend:
+        condition: service_started
+      dashboard_backend:
+        condition: service_started
 
-  backend:
+  dashboard_frontend:
+    build:
+      context: ./apps/dashboard-admin/frontend
+    container_name: dashboard_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/dashboard-admin/frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      # Point to the backend service name within the Docker network
+      - FASTAPI_BACKEND_URL=http://dashboard_backend:8000
+    networks:
+      - portfolio_net
+    depends_on:
+      dashboard_backend:
+        condition: service_started
+
+  dashboard_backend:
     build: ./apps/dashboard-admin/backend/
     container_name: dashboard_backend
     restart: always
@@ -20,10 +46,12 @@ services:
     volumes:
       - ./apps/dashboard-admin/backend/:/app
     depends_on:
-      - nginx
-      - db
+      db:
+        condition: service_healthy
     env_file:
-      - ./.env # This is the line you need to add
+      - ./.env
+    # No 'command' or 'entrypoint' needed here. The CMD from your Dockerfile
+    # already points to your correct run.sh script.
     networks:
       - portfolio_net
 
@@ -37,6 +65,11 @@ services:
       - portfolio_db:/var/lib/postgresql/data
     networks:
       - portfolio_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 networks:
   portfolio_net:
@@ -45,3 +78,4 @@ networks:
 volumes:
   portfolio_db:
     driver: local
+
