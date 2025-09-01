@@ -7,6 +7,7 @@ from typing import List, Annotated
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from auth import create_access_token, verify_password, get_password_hash, verify_access_token
+from app.database import get_db, engine, Base  # <-- THIS IMPORTS DATABASE.PY
 
 # --------------------------------------------------------------------------------
 # Database Configuration
@@ -14,11 +15,11 @@ from auth import create_access_token, verify_password, get_password_hash, verify
 
 # Use environment variables from the .env file
 # The Docker Compose service name 'db' is used as the hostname.
-POSTGRES_USER = os.getenv("POSTGRES_USER")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-POSTGRES_DB = os.getenv("POSTGRES_DB")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_NAME = os.getenv("DB_NAME")
 
-DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@db/{POSTGRES_DB}"
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@db/{DB_NAME}"
 
 # Create the SQLAlchemy engine.
 # `pool_pre_ping` is a setting to ensure the connection is alive.
