@@ -16,9 +16,11 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 COPY alembic.ini .
 COPY alembic ./alembic
 
-# Copy the entire application code, including the models and database connection
+# Copy only what we need, nothing more
 # This ensures Alembic can find your models
-COPY . .
+COPY run.sh /app/run.sh
+RUN chmod +x /app/run.sh
+
 
 # Expose the port the app runs on
 EXPOSE 8000

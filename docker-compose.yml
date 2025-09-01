@@ -59,14 +59,16 @@ services:
     image: postgres:16-alpine
     container_name: dashboard_db
     restart: always
-    env_file:
-      - ./.env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - portfolio_db:/var/lib/postgresql/data
     networks:
       - portfolio_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"] #ensures db bame user etc is ok
       interval: 5s
       timeout: 5s
       retries: 5
