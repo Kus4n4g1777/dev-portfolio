@@ -1,4 +1,7 @@
 services:
+  # ===========================
+  # NGINX reverse proxy
+  # ===========================
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -16,7 +19,10 @@ services:
         condition: service_started
       dashboard_backend:
         condition: service_started
-
+  
+  # ===========================
+  # Dashboard Frontend (React/Angular)
+  # ===========================
   dashboard_frontend:
     build:
       context: ./apps/dashboard-admin/frontend
@@ -35,8 +41,11 @@ services:
       - portfolio_net
     depends_on:
       dashboard_backend:
-        condition: service_started
+        condition: service_healthy
 
+  # ===========================
+  # Dashboard Backend (FastAPI)
+  # ===========================
   dashboard_backend:
     build: ./apps/dashboard-admin/backend/
     container_name: dashboard_backend
@@ -48,19 +57,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      oracle-db:
+        condition: service_healthy # Ensure both databases are healthy before the backend starts
     env_file:
       - ./.env
-    # --- ADD THIS 'environment' BLOCK ---
-    #environment:
-    #  - DATABASE_URL=${DATABASE_URL}
-    # ------------------------------------
-    #entrypoint: ["/app/entrypoint.sh"] not needed anymore
-    #command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-    # No 'command' or 'entrypoint' needed here. The CMD from your Dockerfile
-    # already points to your correct run.sh script.
     networks:
       - portfolio_net
-
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 1
+  # ===========================
+  # PostgreSQL Database
+  # ===========================
   db:
     image: postgres:16-alpine
     container_name: dashboard_db
@@ -78,12 +88,43 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  # ===========================
+  # Oracle Database
+  # ===========================
+  oracle-db:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: oracle-db
+    restart: always
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+      ORACLE_ALLOW_REMOTE: "true"
+    ports:
+      - "1521:1521"
+      - "5500:5500"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./dbs/oracle-init:/opt/oracle/scripts/setup  # <-- init scripts here
+      - ./.env:/opt/oracle/scripts/setup/.env:ro     # <-- mount your .env here too
+    networks:
+      - portfolio_net
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 1
 
+# ===========================
+# Networks
+# ===========================
 networks:
   portfolio_net:
     driver: bridge
 
+# ===========================
+# Volumes
+# ===========================
 volumes:
   portfolio_db:
     driver: local
+  oracle-data:
 

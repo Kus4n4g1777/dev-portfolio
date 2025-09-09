@@ -260,4 +260,8 @@ curl -X 'GET' \
   ```bash
   echo $DB_USER && echo $DB_NAME
   ```
+## Oracle XE Setup
 
+- Container runs Oracle XE with PDB `XEPDB1`.
+- Includes initial script for user creation.
+- Pending: automatic execution of user creation script at container startup.
