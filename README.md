@@ -265,3 +265,172 @@ curl -X 'GET' \
 - Container runs Oracle XE with PDB `XEPDB1`.
 - Includes initial script for user creation.
 - Pending: automatic execution of user creation script at container startup.
+
+# 🔥 The CRLF / Environment Variable Nightmare
+
+Setting up Docker containers on **Windows** can lead to really hard-to-debug issues because of **line endings** and shell behavior. Here’s what happened:
+
+## CRLF vs LF line endings
+
+- **Windows** uses CRLF (`\r\n`)  
+- **Linux** (and Docker containers) expect LF (`\n`)  
+
+`.env` or shell scripts with CRLF can **break variable expansion and command execution**.
+
+**Example:**
+
+```text
+DB_USER=postgres\r
+```
+
+Inside the container, this is not the same as `DB_USER=postgres`. It tries to use a username with a trailing `\r`, causing errors like:
+
+```text
+FATAL: role "-d" does not exist
+```
+
+*(This is exactly what we saw — Docker tried to parse `-d $DB_NAME` but the CRLF messed it up).*
+
+---
+
+## Healthcheck & variable expansion
+
+- In `docker-compose.yml`, using **double `$`** (`$${VAR}`) escapes correctly for Docker Compose on Windows/Linux.  
+- Without proper LF endings, commands like:
+
+```bash
+pg_isready -U $${DB_USER} -d $${DB_NAME}
+```
+
+fail silently or throw weird PostgreSQL errors.
+
+---
+
+## Order of initialization matters
+
+- Postgres container tries to initialize **on first run**.  
+- If the database already exists (`postgresql/data` volume), init scripts are skipped.  
+- FastAPI backend depends on DB health; if `.env` is wrong or scripts fail, backend never starts correctly.
+
+---
+
+## Lessons learned
+
+1. **Always convert `.env` and shell scripts to LF before building containers:**
+
+```bash
+# On Windows with Git installed
+git config --global core.autocrlf input
+```
+
+Or use **VSCode “LF” line endings** and save.
+
+2. **Never commit `.env` with secrets.** Use `.env.example`.  
+3. For Docker Compose, **double `$`** (`$${VAR}`) ensures proper parsing on Windows.  
+4. **Check logs early:** `docker logs dashboard_db` saved hours of guessing.
+
+---
+
+## Debugging tip
+
+Echo the variables inside the container at startup:
+
+```bash
+echo "DB_USER='$DB_USER'"
+echo "DB_NAME='$DB_NAME'"
+```
+
+- If you see trailing `\r` or weird characters, it’s a **line-ending issue**.  
+
+---
+
+💡 **Bottom line:**  
+
+Windows CRLF is the **silent killer** for Docker environment variables.  
+Once `.env` was fixed to LF:
+
+- PostgreSQL came up cleanly  
+- Backend ran  
+- Migrations worked  
+
+**Total victory. 🏆**
+
+### ⚠️ Windows & Docker Notes: Environment Variables & Migrations
+
+🔥 **Windows Variable Behavior**
+
+- CMD/PowerShell does **not expand `$VAR` like Linux**.
+- Use **literal values** from your `.env` file when running commands from Windows.
+
+```cmd
+# Check existing tables and relations
+docker compose exec db psql -U postgres -d portfolio_db -c "\dt"
+
+# Run Alembic migrations (backend container)
+docker compose run --rm dashboard_backend alembic upgrade head
+```
+
+💡 **Inside backend container**, variables expand normally:
+
+```bash
+docker compose exec dashboard_backend bash
+echo $DB_USER
+echo $DB_NAME
+```
+
+---
+
+### 🐳 Docker & .env Tips
+
+- Always convert `.env` and shell scripts to **LF endings** (not CRLF) to avoid silent Docker/DB errors.
+- Never commit `.env` with secrets; only commit `.env.example`.
+- Use **double `$` in docker-compose** for Windows parsing:
+
+```yaml
+# docker-compose.yml
+healthcheck:
+  test: pg_isready -U $${DB_USER} -d $${DB_NAME} || exit 1
+```
+
+---
+
+### 🛠 Check API & Database
+
+**FastAPI Docs / API testing:**
+
+```
+http://localhost:8000/docs
+```
+
+⚠️ **If you see “ERR_EMPTY_RESPONSE” / “Esta página no funciona”**:
+
+1. Check if backend container is **healthy**:
+
+```cmd
+docker ps
+```
+
+- Make sure `dashboard_backend` shows `Up (healthy)`.
+
+2. Check logs:
+
+```cmd
+docker compose logs dashboard_backend -f
+```
+
+3. Verify migrations were applied:
+
+```cmd
+docker compose exec db psql -U postgres -d portfolio_db -c "\dt"
+docker compose run --rm dashboard_backend alembic upgrade head
+```
+
+---
+
+### 💾 Git Notes
+
+- Commit only `.env.example`, **not real `.env`**.
+- Commit any config fixes (docker-compose.yml, scripts with LF endings).
+- Do **not commit secrets** — it’s dangerous.
+
+

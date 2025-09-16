@@ -9,6 +9,9 @@ COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
+# Install Postgres client
+RUN apt-get update && apt-get install -y postgresql-client && rm -rf /var/lib/apt/lists/*
+
 # Copy Alembic migrations
 COPY alembic.ini .
 COPY alembic ./alembic

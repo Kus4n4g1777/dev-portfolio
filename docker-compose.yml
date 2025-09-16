@@ -84,7 +84,7 @@ services:
     networks:
       - portfolio_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"] #ensures db bame user etc is ok
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME} || exit 1"] #ensures db name user etc is ok
       interval: 5s
       timeout: 5s
       retries: 5
