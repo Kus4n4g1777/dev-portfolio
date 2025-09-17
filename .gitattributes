@@ -1,5 +1,15 @@
-# Force LF for Dockerfiles, shell scripts, and env files
+# Auto normalize everything else
+* text=auto
+
+# Force LF for scripts, env files, and config
 *.sh text eol=lf
 *.env text eol=lf
 Dockerfile text eol=lf
 docker-compose*.yml text eol=lf
+
+# Force LF for Python, JSON, YAML, Markdown
+*.py text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf

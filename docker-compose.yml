@@ -21,14 +21,15 @@ services:
         condition: service_started
   
   # ===========================
-  # Dashboard Frontend (React/Angular)
+  # Dashboard Frontend (Angular)
   # ===========================
   dashboard_frontend:
     build:
       context: ./apps/dashboard-admin/frontend
+      dockerfile: Dockerfile
     container_name: dashboard_frontend
     ports:
-      - "3000:3000"
+      - "4200:80"   # Host 4200 → container 80 (Nginx serving Angular)
     volumes:
       - ./apps/dashboard-admin/frontend:/app
       - /app/node_modules
@@ -36,6 +37,32 @@ services:
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
       # Point to the backend service name within the Docker network
+      - FASTAPI_BACKEND_URL=http://dashboard_backend:8000
+    networks:
+      - portfolio_net
+    depends_on:
+      dashboard_backend:
+        condition: service_healthy
+  
+  # ===========================
+  # Portfolio Frontend (React)
+  # ===========================
+  # ===========================
+  # Portfolio Frontend (React)
+  # ===========================
+  portfolio_frontend:
+    build:
+      context: ./apps/portfolio
+      dockerfile: Dockerfile
+    container_name: portfolio_frontend
+    ports:
+      - "3000:3000"   # React dev server host:container
+    volumes:
+      - ./apps/portfolio:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
       - FASTAPI_BACKEND_URL=http://dashboard_backend:8000
     networks:
       - portfolio_net

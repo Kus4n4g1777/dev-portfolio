@@ -1,12 +1,10 @@
 # README.md
 
-# 🚀 Portfolio Backend Setup
+# 🚀 Portfolio Fullstack Setup
 
-This is the backend part of my portfolio project.  
-I’m documenting everything here so deployment, testing, and future improvements are easier.  
+This repository now includes backend + database + Angular frontend + React frontend.
 
-Later I’ll add instructions for the **React frontend, Angular frontend, and Flutter ML parts**.  
-For now, this is focused on the **backend + database setup**.
+I’m documenting everything here so deployment, testing, and future improvements are easier. This includes notes about version switching between different projects and environments, as well as troubleshooting steps for Windows Docker setups. 
 
 ---
 
@@ -14,6 +12,7 @@ For now, this is focused on the **backend + database setup**.
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose installed
 - Python 3.10+  
+- Node.js (modern project version, switching between works)
 - Git
 - Optional: Virtualenv for running scripts locally (`venv/`)
 
@@ -35,6 +34,10 @@ DB_USER=your_user
 DB_PASSWORD=your_password
 DB_NAME=portfolio_db
 DB_HOST=dashboard_db
+
+# New variables for the Oracle database
+ORACLE_PASSWORD=your_oracle_password
+ORACLE_XE_DB=XEPDB1 # Default database for Oracle XE or yours
 
 # For the FastAPI backend to connect to the database
 DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}
@@ -173,18 +176,10 @@ docker compose run --rm dashboard_backend alembic revision --autogenerate -m "cr
 docker compose run --rm dashboard_backend alembic upgrade head
 ```
 
-You should see something like:
-
-```
-INFO  [alembic.runtime.migration] Running upgrade -> c49e82f2d940, create users table
-```
-
 ### Step 6: Check tables
 ```bash
 docker compose exec db psql -U $DB_USER -d $DB_NAME -c "\dt"
 ```
-
-You should see `users` and `alembic_version`.
 
 ### Step 7: Test FastAPI
 
@@ -252,180 +247,246 @@ curl -X 'GET' \
 
 ---
 
-💡 If you get errors:  
-- Check `.env` is set correctly  
-- Make sure `alembic/versions/` has a valid migration file (`.py`, not `.py~`)  
-- Use `docker compose logs dashboard_backend` for debugging  
-- Inside container:  
-  ```bash
-  echo $DB_USER && echo $DB_NAME
-  ```
-## Oracle XE Setup
+## 🖥 Frontend Setup Notes
 
-- Container runs Oracle XE with PDB `XEPDB1`.
-- Includes initial script for user creation.
-- Pending: automatic execution of user creation script at container startup.
+We now have **two frontend projects** in this repo:
+- `dashboard-admin/frontend` → Angular Dashboard
+- `portfolio/frontend` → React Users View
 
-# 🔥 The CRLF / Environment Variable Nightmare
+### Notes on Node Versions & Switching
+- The projects may require **different Node.js versions**.
+- Use `nvm` to switch between versions when working across projects:
 
-Setting up Docker containers on **Windows** can lead to really hard-to-debug issues because of **line endings** and shell behavior. Here’s what happened:
-
-## CRLF vs LF line endings
-
-- **Windows** uses CRLF (`\r\n`)  
-- **Linux** (and Docker containers) expect LF (`\n`)  
-
-`.env` or shell scripts with CRLF can **break variable expansion and command execution**.
-
-**Example:**
-
-```text
-DB_USER=postgres\r
+```bash
+nvm install <version>
+nvm use <version>
 ```
 
-Inside the container, this is not the same as `DB_USER=postgres`. It tries to use a username with a trailing `\r`, causing errors like:
+- Always install dependencies after switching:
 
-```text
+```bash
+npm install
+```
+
+### Angular Frontend (Dashboard)
+1. Navigate to `apps/dashboard-admin/frontend`
+2. Build production:
+```bash
+ng build --configuration production
+```
+3. Add Angular frontend to Docker Compose:
+```yaml
+services:
+  dashboard_frontend:
+    build: ./apps/dashboard-admin/frontend
+    ports:
+      - 4200:80
+```
+
+### React Frontend (Users View)
+1. Navigate to `apps/portfolio/frontend`
+2. Build production:
+```bash
+npm run build
+```
+3. Add React frontend to Docker Compose:
+```yaml
+services:
+  portfolio_frontend:
+    build: ./apps/portfolio/frontend
+    ports:
+      - 3000:80
+```
+
+💡 **Tip:** Build each frontend **before starting Docker Compose** to ensure images are up-to-date.
+
+---
+
+## ⚡ Version Switching Notes
+
+- Node.js and Angular CLI versions may differ between projects.
+- Use `nvm` to switch Node.js versions:
+```bash
+nvm use <version>
+```
+- Reinstall Angular CLI if switching projects with a different Node version:
+```bash
+npm install -g @angular/cli
+```
+- Always verify frontend builds after switching versions.
+
+---
+
+## 🔥 Troubleshooting / Notes from this Setup
+
+- Docker Desktop must be running before building images.
+- If you get `ng` not found, ensure Angular CLI is installed globally:
+```bash
+npm install -g @angular/cli
+```
+- Pay attention to the **correct Node.js version** per project.
+- Check Docker logs for container health:
+```bash
+docker compose logs -f
+```
+- Sometimes container names and networks are automatically generated; verify `docker compose ps`.
+- Windows CRLF issues can silently break builds; always convert `.env` and scripts to LF.
+- Convert `.env` and shell scripts to **LF endings** (VSCode or `git config --global core.autocrlf input`).
+- Use **double `$`** in docker-compose to escape variables:
+```yaml
+healthcheck:
+  test: pg_isready -U $${DB_USER} -d $${DB_NAME} || exit 1
+```
+- Check logs for container health:
+```bash
+docker compose logs -f
+```
+---
+
+# 📝 Git Line Endings & Normalization Guide
+
+This guide explains how to handle **line endings (CRLF vs LF)** in a cross-platform project, ensuring Docker, backend, and frontend files work on **Windows and Linux** without Git or Docker breaking. It also includes the exact **sequence we use** to stage, normalize, and commit files safely.
+
+---
+
+## 1️⃣ Background: CRLF vs LF
+
+- **Windows** uses **CRLF** (`\r\n`)  
+- **Linux/macOS/Docker containers** expect **LF** (`\n`)  
+
+If you commit CRLF files but your containers/scripts expect LF, you can see:
+
+- Docker or shell scripts failing
+- PostgreSQL / FastAPI not starting
+- Errors like:
+
+```
 FATAL: role "-d" does not exist
 ```
 
-*(This is exactly what we saw — Docker tried to parse `-d $DB_NAME` but the CRLF messed it up).*
+This usually comes from a `.env` or shell script with CRLF endings.
 
 ---
 
-## Healthcheck & variable expansion
+## 2️⃣ `.gitattributes` Setup
 
-- In `docker-compose.yml`, using **double `$`** (`$${VAR}`) escapes correctly for Docker Compose on Windows/Linux.  
-- Without proper LF endings, commands like:
+To **force LF endings** for important files and **normalize line endings**, add a `.gitattributes` file at the repo root:
 
-```bash
-pg_isready -U $${DB_USER} -d $${DB_NAME}
+```text
+# Force LF for shell scripts, Dockerfiles, env files
+*.sh text eol=lf
+*.env text eol=lf
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+
+# Optional: force LF for JSON/TS/JS (frontend)
+*.json text eol=lf
+*.ts text eol=lf
+*.js text eol=lf
+*.html text eol=lf
+*.css text eol=lf
 ```
 
-fail silently or throw weird PostgreSQL errors.
+**Why:**  
+- Ensures everyone (Windows/Linux) commits files with LF endings  
+- Prevents silent Docker/DB/backend errors  
+- Avoids git warnings when staging and committing  
 
 ---
 
-## Order of initialization matters
+## 3️⃣ Normalization Sequence (Safe Commit)
 
-- Postgres container tries to initialize **on first run**.  
-- If the database already exists (`postgresql/data` volume), init scripts are skipped.  
-- FastAPI backend depends on DB health; if `.env` is wrong or scripts fail, backend never starts correctly.
+When you have mixed line endings or CRLF warnings, do the following:
 
----
-
-## Lessons learned
-
-1. **Always convert `.env` and shell scripts to LF before building containers:**
+### Step 1: Unstage everything
 
 ```bash
-# On Windows with Git installed
+git reset
+```
+
+This moves all staged changes back to the working directory.  
+
+### Step 2: Apply `.gitattributes` rules to all files
+
+```bash
+git add --renormalize .
+```
+
+**What this does:**  
+- Forces Git to re-check all files according to `.gitattributes`  
+- Converts files with CRLF → LF automatically (if the rules say `eol=lf`)  
+- Prepares them for a clean commit  
+
+### Step 3: Stage frontend, Dockerfiles, and Compose
+
+```bash
+git add apps/dashboard-admin/frontend/
+git add apps/portfolio/Dockerfile
+git add .gitattributes docker-compose.yml
+```
+
+**Note:** You may see warnings like:
+
+```
+warning: in the working copy of 'apps/dashboard-admin/frontend/package.json', LF will be replaced by CRLF the next time Git touches it
+```
+
+✅ This is normal and **safe**, because `.gitattributes` will enforce LF on commit.
+
+### Step 4: Verify staged files
+
+```bash
+git status
+```
+
+You should see:
+
+- **Changes to be committed** → `.gitattributes`, Dockerfiles, docker-compose.yml, all frontend files  
+- **No unintentional CRLF files left behind**
+
+### Step 5: Commit
+
+```bash
+git commit -m "Add frontend files, update docker-compose, normalize line endings"
+```
+
+---
+
+## 4️⃣ Tips & Best Practices
+
+- Always commit `.gitattributes` **before adding new files**
+- Convert `.env` and shell scripts to LF manually if editing on Windows
+- Use VSCode **“LF” line endings** option
+- Set Git globally to avoid CRLF problems:
+
+```bash
 git config --global core.autocrlf input
 ```
 
-Or use **VSCode “LF” line endings** and save.
-
-2. **Never commit `.env` with secrets.** Use `.env.example`.  
-3. For Docker Compose, **double `$`** (`$${VAR}`) ensures proper parsing on Windows.  
-4. **Check logs early:** `docker logs dashboard_db` saved hours of guessing.
-
----
-
-## Debugging tip
-
-Echo the variables inside the container at startup:
-
-```bash
-echo "DB_USER='$DB_USER'"
-echo "DB_NAME='$DB_NAME'"
-```
-
-- If you see trailing `\r` or weird characters, it’s a **line-ending issue**.  
-
----
-
-💡 **Bottom line:**  
-
-Windows CRLF is the **silent killer** for Docker environment variables.  
-Once `.env` was fixed to LF:
-
-- PostgreSQL came up cleanly  
-- Backend ran  
-- Migrations worked  
-
-**Total victory. 🏆**
-
-### ⚠️ Windows & Docker Notes: Environment Variables & Migrations
-
-🔥 **Windows Variable Behavior**
-
-- CMD/PowerShell does **not expand `$VAR` like Linux**.
-- Use **literal values** from your `.env` file when running commands from Windows.
-
-```cmd
-# Check existing tables and relations
-docker compose exec db psql -U postgres -d portfolio_db -c "\dt"
-
-# Run Alembic migrations (backend container)
-docker compose run --rm dashboard_backend alembic upgrade head
-```
-
-💡 **Inside backend container**, variables expand normally:
-
-```bash
-docker compose exec dashboard_backend bash
-echo $DB_USER
-echo $DB_NAME
-```
-
----
-
-### 🐳 Docker & .env Tips
-
-- Always convert `.env` and shell scripts to **LF endings** (not CRLF) to avoid silent Docker/DB errors.
-- Never commit `.env` with secrets; only commit `.env.example`.
-- Use **double `$` in docker-compose** for Windows parsing:
+- For Docker Compose healthchecks, escape variables on Windows:
 
 ```yaml
-# docker-compose.yml
 healthcheck:
   test: pg_isready -U $${DB_USER} -d $${DB_NAME} || exit 1
 ```
 
----
-
-### 🛠 Check API & Database
-
-**FastAPI Docs / API testing:**
-
-```
-http://localhost:8000/docs
-```
-
-⚠️ **If you see “ERR_EMPTY_RESPONSE” / “Esta página no funciona”**:
-
-1. Check if backend container is **healthy**:
-
-```cmd
-docker ps
-```
-
-- Make sure `dashboard_backend` shows `Up (healthy)`.
-
-2. Check logs:
-
-```cmd
-docker compose logs dashboard_backend -f
-```
-
-3. Verify migrations were applied:
-
-```cmd
-docker compose exec db psql -U postgres -d portfolio_db -c "\dt"
-docker compose run --rm dashboard_backend alembic upgrade head
-```
+- After this normalization, future commits **won’t trigger CRLF warnings**  
 
 ---
+
+### ✅ Bottom Line
+
+This process ensures:
+
+- All scripts, Dockerfiles, env files, and frontend files have **LF endings**
+- Docker, PostgreSQL, FastAPI, and Oracle containers run **without errors**
+- Cross-platform development is smooth (Windows ↔ Linux)
+
+### Healthchecks & Initialization
+
+- Ensure DB containers are healthy before backend starts.
+- If migrations fail, check `.env` and line endings.
+- Always confirm container ports do not conflict.
 
 ### 💾 Git Notes
 
@@ -433,4 +494,47 @@ docker compose run --rm dashboard_backend alembic upgrade head
 - Commit any config fixes (docker-compose.yml, scripts with LF endings).
 - Do **not commit secrets** — it’s dangerous.
 
+---
+
+## Quick TL;DR Start
+
+```bash
+# Clone repo
+git clone <repo> && cd dev-portfolio
+
+# Copy env
+cp .env.example .env
+
+# Build & run all containers
+docker compose up -d --build
+
+# Run backend migrations
+docker compose run --rm dashboard_backend alembic upgrade head
+
+# Verify tables
+docker compose exec db psql -U $DB_USER -d $DB_NAME -c "\dt"
+
+# Access API docs
+http://localhost:8000/docs
+```
+
+---
+
+### ✅ Notes for recent implementations.
+
+- Frontend Angular → `dashboard_frontend` (port 4200)
+- Frontend React → `portfolio_frontend` (port configured in docker-compose)
+- Backend FastAPI → `dashboard_backend` (port 8000)
+- DBs healthy and containers linked via Docker Compose network
+- Oracle-DB → `oracle-db` pending user creation script. 
+
+---
+
+🎉 All services are now running, ready for testing, development, and commits.
+
+# Oracle XE Setup
+
+- Container runs Oracle XE with PDB `XEPDB1`.
+- Includes initial script for user creation.
+- Pending: automatic execution of user creation script at container startup.
 
