@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchBlogPosts } from '../services/api';
 import BlogPostCard from '../components/BlogPostCard/index.jsx';
-import './pages.css';
+import '../index.css';
 
 const HomePage = () => {
   const [blogPosts, setBlogPosts] = useState([]);

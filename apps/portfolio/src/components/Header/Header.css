@@ -3,9 +3,27 @@
   transition-property: color;
   transition-duration: 300ms;
   color: #fff;
-  background-color: #CC8899
+  /* background-color: #c488cc; */
+  background-color: #1f2937;
+  display: flex;
+  flex-direction: row;
+  justify-content: center; /* 👈 centra los items */
+  gap: 1.8rem;             /* 👈 separación entre links */
+  width: 100%;             /* 👈 ocupa todo el ancho */
 }
 
+.nav-item {
+  transition-property: color;
+  transition-duration: 300ms;
+  color: #fff;
+  background-color: #1f2937;
+  display: flex;
+  flex-direction: row;
+}
+
+.nav-item:hover {
+  color: #000000; /* A light cyan color for hover effect */
+}
 .nav-link:hover {
-  color: #06b6d4; /* A light cyan color for hover effect */
+  color: #000000; /* A light cyan color for hover effect */
 }

@@ -3,6 +3,9 @@
   color: #d1d5db; /* A light gray for the text */
   padding: 1rem;
   text-align: center;
+  justify-content: center; /* 👈 centra los items */
+  gap: 1.5rem;             /* 👈 separación entre links */
+  width: 100%;             /* 👈 ocupa todo el ancho */
   margin-top: auto; /* This pushes the footer to the bottom of the page */
 }
 

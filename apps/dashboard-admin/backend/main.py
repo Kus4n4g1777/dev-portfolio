@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -60,17 +60,23 @@ def get_db():
     finally:
         db.close()
 
-
 # --------------------------------------------------------------------------------
 # Fast API Application
 # --------------------------------------------------------------------------------
 app = FastAPI()
 
 # --- CORS Middleware ---
-# This is the key to fixing your network error.
+# This is the key to fixing our network error of cors. This is a white list for access.
+# This is the key to fixing our network error of cors. This is a white list for access.
 origins = [
     "http://localhost",
-    "http://localhost:5173",  # Your React app's origin
+    "http://localhost:5173",  # React Vite
+    "http://localhost:3001",  # React Docker
+    "http://127.0.0.1:5173",  # React Vite
+    "http://127.0.0.1:3001",  # React Docker
+    "http://10.0.2.2:8000",   # Flutter emulator
+    "http://localhost:54712", # Flutter web
+    "http://127.0.0.1:8000",  # Flutter turned on because of android studio
 ]
 
 app.add_middleware(

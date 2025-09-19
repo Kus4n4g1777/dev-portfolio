@@ -6,15 +6,15 @@ const DashboardPage = () => {
 
   if (!user) {
     return (
-      <div className="text-center p-8">
+      <div className="flex-grow flex items-center justify-center">
         <h1 className="text-xl font-semibold">Loading user data...</h1>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <div className="w-full max-w-xl bg-white rounded-xl shadow-lg p-8 text-center">
+    <div className="flex-grow flex">
+      <div className="w-full h-full bg-white flex flex-col items-center justify-center p-8 text-center">
         <h1 className="text-4xl font-bold text-gray-800 mb-4">Welcome, {user.username}!</h1>
         <p className="text-gray-600 mb-8">This is your protected dashboard. You can add charts, data, and other private content here.</p>
         <button

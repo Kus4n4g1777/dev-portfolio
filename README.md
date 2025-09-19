@@ -538,3 +538,146 @@ http://localhost:8000/docs
 - Includes initial script for user creation.
 - Pending: automatic execution of user creation script at container startup.
 
+## Flutter and React integration with Fast API
+
+This part of the README consolidates **everything we did** to achieve the Flutter and React frontend connections with FastAPI backend, including Docker setup, styling adjustments, login handling, challenges, troubleshooting, and temporary workarounds.
+
+---
+
+## Flutter Frontend
+
+### 1. Initial Setup & API Service
+- Created `ApiService` class to handle login, token storage, and protected route requests.
+- Base URL set dynamically for Android emulator and local environment:
+```dart
+static String get baseUrl {
+  if (Platform.isAndroid) return "http://10.0.2.2:8000";
+  return "http://127.0.0.1:8000";
+}
+```
+- Used `SharedPreferences` to store JWT token locally.
+- Added console prints for debugging connection issues.
+
+### 2. Connecting to FastAPI
+- Added CORS origins to allow connections from emulators and frontend:
+```python
+origins = [
+    "http://localhost",
+    "http://127.0.0.1:5173",
+    "http://10.0.2.2:8000",   # Flutter emulator
+    "http://127.0.0.1:8000"
+]
+```
+- Initial issue: `404` or `401` due to incorrect URL or token usage.
+- Verified endpoints with ping tests and prints.
+
+### 3. Emulator & Disk Space Challenges
+- Android Studio emulator was moved to a different drive due to small disk space.
+- Docker volumes and container sizes monitored to avoid filling up disk.
+- Temporary solution: manual cleanup using:
+```bash
+docker system prune -af --volumes
+```
+- Pending improvement: automated Python script for safe volume cleanup.
+
+### 4. Key Learnings
+- Localhost vs emulator IP (`127.0.0.1` vs `10.0.2.2`) is critical.
+- Always log network requests and token values for debugging.
+- Flutter + FastAPI integration requires careful CORS configuration.
+
+---
+
+## React Frontend
+
+### 1. Initial Setup
+- Project created using Vite with TailwindCSS and React Router.
+- `AuthContext` implemented for login, token management, and protected routes.
+- Routing configured for `/login`, `/dashboard`, `/blog`, `/projects`, `/tests`.
+
+### 2. Login Screen
+- Improved styling using Tailwind:
+  - Centered card layout
+  - Rounded inputs with hover/focus states
+  - Error messages displayed below the form
+- Attempted icon usage (`lucide-react`), faced Node version compatibility issues.
+- Resolved temporarily by adjusting Node version in Docker for frontend.
+
+### 3. Header & Navigation Styling
+- Issues with navigation bar appearance (small centered box).
+- Adjustments:
+  - Added width, padding, and flex spacing
+  - Hover effects for `.nav-item` and `.nav-link`
+  - Custom colors for improved contrast
+
+### 4. Connecting to FastAPI
+- URL handling for dev and Docker:
+```js
+const baseUrl = Platform.isAndroid ? "http://10.0.2.2:8000" : "http://127.0.0.1:8000";
+```
+- CORS configuration in FastAPI to allow React local ports.
+- `401 Unauthorized` fixed by fetching token correctly on component mount:
+```js
+useEffect(() => {
+  const tokenFromStorage = localStorage.getItem('token');
+  if (tokenFromStorage) fetchUserFromToken(tokenFromStorage);
+}, []);
+```
+
+### 5. Docker & Disk Space Issues
+- Containers sometimes failed to start due to low disk space.
+- Commands used for cleanup:
+```bash
+docker system prune -af --volumes
+```
+- Recommendation: move Docker virtual disk to larger drive, monitor volume usage.
+- Pending: safe Python cleanup script for production.
+
+### 6. Tailwind Styling Tips
+- Ensure `@tailwind base; @tailwind components; @tailwind utilities;` in `index.css`.
+- Check `className` strings for spacing/margin/padding conflicts.
+- Add console logs to debug class application.
+
+### 7. Key Learnings
+- React + Tailwind + FastAPI integration requires correct CORS and URL handling.
+- `useEffect` dependencies are critical to fetch data after login/token update.
+- Disk space issues in Docker can silently break builds.
+- Console logging is essential for debugging API requests and token flows.
+
+---
+
+## General Docker Notes
+
+### Issues Encountered
+- Containers failed with `commit failed: write ... input/output error` due to disk space.
+- Docker Desktop froze; manual restart was required.
+- Some services (e.g., `com.docker.service`) could not be stopped via PowerShell.
+
+### Temporary Solutions
+- Closed Docker Desktop from taskbar and restarted.
+- Pruned volumes, containers, and images manually.
+- Confirmed frontend connection after cleanup.
+
+### Recommendations for Production
+- Bind a safe cleanup script inside Docker Compose to remove unused volumes and images.
+- Monitor disk space to avoid failed container builds.
+- Ensure Node and npm versions inside Docker match frontend dependency requirements.
+
+### Recommendations to remove warnings about what we setup at gitattributes to handle clrf and lf lines issue
+- Set Git to automatically handle line endings
+```On Windows
+git config --global core.autocrlf true
+```
+- This converts LF → CRLF on checkout, CRLF → LF on commit.
+- After this, the warnings will mostly disappear.
+---
+
+## Summary & Next Steps
+- **Flutter frontend:** successfully connected to FastAPI with proper token handling and CORS configuration.
+- **React frontend:** login, navigation, styling, and FastAPI connection fully functional.
+- **Challenges faced:** Node version compatibility, Tailwind styling, emulator IP vs localhost, Docker disk space, frozen Docker Desktop.
+- **Pending:** integration of automated tests, automated cleanup script, integration of ML/AI, Node upgrade in Docker, further UI improvements (icons, enhanced login styling), integration with rest of the services, .
+
+---
+
+This README serves as a complete record of integration steps, troubleshooting, and lessons learned from our last commits for both Flutter and React frontends with Docker + FastAPI backend.
+

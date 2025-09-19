@@ -56,7 +56,7 @@ services:
       dockerfile: Dockerfile
     container_name: portfolio_frontend
     ports:
-      - "3000:3000"   # React dev server host:container
+      - "3001:5173"   # React dev server host:container... Look out, as we are using Vite, you have to change it to 5173 from Vite
     volumes:
       - ./apps/portfolio:/app
       - /app/node_modules

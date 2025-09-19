@@ -7,29 +7,34 @@ const Header = () => {
   const { user, logout } = useAuth();
 
   return (
-    <nav className="bg-gray-800 p-4 text-white">
-      <ul className="flex justify-center space-x-6">
+    <nav className="bg-gray-800 w-full">
+      <ul className="nav-link flex justify-center space-x-6 py-4">
         <li>
-          <Link to="/" className="nav-link">Home</Link>
+          <Link to="/"  className ="nav-item">Home</Link>
         </li>
         <li>
-          <Link to="/blog" className="nav-link">Blog</Link>
+          <Link to="/blog" className ="nav-item">Blog</Link>
         </li>
         <li>
-          <Link to="/projects" className="nav-link">Projects</Link>
+          <Link to="/projects" className ="nav-item">Projects</Link>
+        </li>
+        <li>
+          <Link to="/tests" className ="nav-item">Tests</Link>
         </li>
         {user ? (
           <>
             <li>
-              <Link to="/dashboard" className="nav-link">Dashboard</Link>
+              <Link to="/dashboard" className ="nav-item">Dashboard</Link>
             </li>
             <li>
-              <button onClick={logout} className="nav-link">Logout</button>
+              <Link to="#" onClick={logout} className="nav-item">
+                Logout
+              </Link>
             </li>
           </>
         ) : (
           <li>
-            <Link to="/login" className="nav-link">Login</Link>
+            <Link to="/login" className ="nav-item">Login</Link>
           </li>
         )}
       </ul>
