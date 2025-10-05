@@ -671,6 +671,130 @@ git config --global core.autocrlf true
 - After this, the warnings will mostly disappear.
 ---
 
+# Dashboard Admin Backend - Docker & Python Upgrade Guide
+
+This document explains the steps taken to upgrade the backend Docker container to Python 3.11, pin dependencies, and ensure reproducible builds. It also includes tests, issues found, and recommendations for future improvements.
+
+---
+
+## 1. Upgrade Python Version
+
+**Current:** 3.12 (was used in some containers previously)
+
+**Action:** Downgraded to Python 3.11 to ensure compatibility with `bcrypt` and FastAPI dependencies.
+
+```dockerfile
+# Use official Python image
+FROM python:3.11-slim
+
+WORKDIR /app
+```
+
+**Reasoning:**
+- `bcrypt` had issues with Python 3.12.
+- 3.11 is stable and widely supported by current dependencies.
+
+---
+
+## 2. Pinning Dependencies
+
+**Action:** After building the container and verifying versions:
+```bash
+pip freeze > requirements_frozen.txt
+```
+- This file captures the exact versions installed in the container.
+
+**Example pinned versions (partial):**
+```
+bcrypt==4.0.1
+fastapi==0.118.0
+passlib==1.7.4
+SQLAlchemy==2.0.43
+```
+
+**Recommendation:** Pin all major dependencies to avoid future breaking changes.
+
+**Update `requirements.txt` in backend:**
+```powershell
+Move-Item -Path requirements_frozen.txt -Destination requirements.txt -Force
+```
+
+---
+
+## 3. Rebuild Docker Container
+
+```bash
+docker compose build --no-cache dashboard_backend
+docker compose up -d
+```
+
+**Test:**
+- Access `http://localhost:8000/docs` to ensure FastAPI server runs.
+- Check logs:
+```bash
+docker logs dashboard_backend
+```
+- Verify bcrypt hashing works (test creating a user via POST `/users/`).
+
+**Issue found:**
+- `ValueError: password cannot be longer than 72 bytes` when using bcrypt.
+  - Solution: truncate passwords to 72 characters in backend before hashing.
+
+---
+
+## 4. Tests & Verification
+
+**Check Python & bcrypt version in container:**
+```bash
+docker exec -it dashboard_backend bash
+python --version
+python -m pip show bcrypt
+```
+
+**Ensure requirements are frozen:**
+```bash
+pip freeze > requirements_frozen.txt
+```
+- Compare with current `requirements.txt` to ensure consistency.
+
+**API test:**
+POST to `/users/` with:
+```json
+{
+  "username": "kus4n4g1",
+  "email": "sunny071282gmail.com",
+  "password": "Ethan0410",
+  "role": "admin"
+}
+```
+- Verify 200 OK and hashed password in DB.
+
+---
+
+## 5. Issues & Recommendations
+
+**Issues found:**
+1. `bcrypt` incompatible with Python 3.12.
+2. Password length restriction (72 bytes) not handled.
+3. `requirements.txt` not pinned initially.
+
+**Recommendations:**
+- Always pin dependency versions using `pip freeze` after installing in container.
+- Use a separate frozen requirements file (`requirements_frozen.txt`) as backup.
+- Add a CI/CD check to rebuild Docker image and verify API endpoints automatically.
+- Optionally, add a pre-commit hook to run `pip freeze > requirements_frozen.txt` whenever dependencies are updated.
+- Truncate or validate password length before hashing to avoid bcrypt errors.
+
+---
+
+## 6. Summary for Future Reference
+
+- Python 3.11 is stable for this project.
+- All dependencies are now pinned and reproducible.
+- Docker container can be rebuilt with `--no-cache` to verify fresh installs.
+- Tests include API POST request and checking container logs.
+- Recommendations ensure future developers (or recruiters reviewing this) can follow the steps easily.
+
 ## Summary & Next Steps
 - **Flutter frontend:** successfully connected to FastAPI with proper token handling and CORS configuration.
 - **React frontend:** login, navigation, styling, and FastAPI connection fully functional.
