@@ -1,5 +1,6 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+import jwt
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Response, Cookie
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -8,6 +9,8 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from auth import create_access_token, verify_password, get_password_hash, verify_access_token
 from app.database import get_db, engine, Base  # <-- THIS IMPORTS DATABASE.PY
+from app.routes import websocket_routes
+from datetime import datetime, timedelta
 
 # --------------------------------------------------------------------------------
 # Database Configuration
@@ -64,6 +67,9 @@ def get_db():
 # Fast API Application
 # --------------------------------------------------------------------------------
 app = FastAPI()
+
+#Include our just created first route (websocket)
+app.include_router(websocket_routes.router)
 
 # --- CORS Middleware ---
 # This is the key to fixing our network error of cors. This is a white list for access.
@@ -130,10 +136,14 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session 
 # --------------------------------------------------------------------------------
 
 @app.post("/token")
-async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Session = Depends(get_db)):
+async def login_for_access_token(
+    response: Response,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db)
+):
     """
     Login endpoint to get an access token.
-    Checks credentials against the database and returns a JWT token.
+    Checks credentials against the database and returns a JWT token and sets a refresh token in an HttpOnly cookie.
     """
     user = db.query(User).filter(User.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -142,7 +152,21 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
     access_token = create_access_token(data={"sub": user.username})
+    refresh_token = create_refresh_token(data={"sub": user.username})
+    
+    # Set refresh token as HttpOnly cookie
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,  # True if using HTTPS in production
+        samesite="strict",
+        max_age=7*24*3600  # 7 days
+    )
+    
+    # Return only access token in JSON
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -184,4 +208,46 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(db_user)
     return {"message": "User created successfully"}
 
+# Function to create refresh token
+def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(days=7))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, os.getenv("SECRET_KEY"), algorithm="HS256")
+
+
+# Refresh token endpoint
+@app.post("/refresh")
+async def refresh_access_token(response: Response, refresh_token: str = Cookie(None)):
+    """
+    Takes a valid refresh token from HttpOnly cookie and returns a new access token.
+    """
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+    
+    try:
+        payload = jwt.decode(refresh_token, os.getenv("SECRET_KEY"), algorithms=["HS256"])
+        username = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        
+        access_token = create_access_token(data={"sub": username})
+        
+        # Rotate refresh token
+        new_refresh_token = create_refresh_token(data={"sub": username})
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            secure=False,  # True in production with HTTPS
+            samesite="strict",
+            max_age=7*24*3600
+        )
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+    
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 

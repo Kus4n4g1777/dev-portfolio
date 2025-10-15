@@ -63,7 +63,11 @@ export const AuthProvider = ({ children }) => {
     const data = await response.json();
     const newAuthToken = data.access_token;
 
-    console.log("🔑 Received token:", newAuthToken); // 👈 print of the token for debugging
+    // 🔒 Mask the access token in console logs for safety
+    console.log(
+      "🔑 Received token (masked):",
+      newAuthToken.slice(0, 5) + "..." + newAuthToken.slice(-5)
+    ); // 👈 print of the masked token for debugging
 
     localStorage.setItem('token', newAuthToken);
     setToken(newAuthToken);
