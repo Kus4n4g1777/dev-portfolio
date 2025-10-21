@@ -1,0 +1,48 @@
+server:
+  port: 8081
+
+# -----------------------------------------------
+# Spring configuration like db user, password, etc
+# -----------------------------------------------
+spring:
+  application:
+    name: dashboard-backend-springboot
+  datasource:
+    url: jdbc:postgresql://db:5432/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  flyway:
+    baseline-on-migrate: true       # ✅ Treat existing schema as baseline
+    baseline-version: 1             # First version for Flyway
+    locations: classpath:db/migration   # Where your SQL migration scripts will live
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: portfolio-group # This matches your @KafkaListener
+# -----------------------------------------------
+# Management, to handle health, info and prometheus
+# -----------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  health:
+    defaults:
+      enabled: true
+
+# -----------------------------------------------
+# JWT & Security Configuration
+# -----------------------------------------------
+jwt:
+  # This reads the SECRET_KEY from the .env file
+  secret: ${SECRET_KEY}
