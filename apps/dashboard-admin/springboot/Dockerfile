@@ -1,8 +1,19 @@
 # 1️⃣ Build stage
 FROM maven:3.9.6-eclipse-temurin-21 AS build
 WORKDIR /app
+
+# Copy pom.xml and download dependencies (caches this layer)
 COPY pom.xml .
+RUN mvn dependency:go-offline
+
+# Copy source code
 COPY src ./src
+
+# 💥 RUN JUNIT TESTS 💥
+# If tests fail, the build will stop here.
+RUN mvn test
+
+# Package the application, skipping tests since we just ran them
 RUN mvn clean package -DskipTests
 
 # 2️⃣ Runtime stage

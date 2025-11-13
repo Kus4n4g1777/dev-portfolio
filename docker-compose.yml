@@ -1,6 +1,6 @@
 services:
   # ===========================
-  # NGINX reverse proxy
+  # NGINX Reverse Proxy
   # ===========================
   nginx:
     image: nginx:latest
@@ -10,60 +10,39 @@ services:
       - "8080:80"
       - "443:443"
     volumes:
-      # Correct volume mount for your nginx configuration
       - ./nginx/conf.d/:/etc/nginx/conf.d/
     networks:
       - portfolio_net
     depends_on:
-      dashboard_frontend:
-        condition: service_started
-      dashboard_backend:
-        condition: service_started
-  
+      - dashboard_frontend
+      - portfolio_frontend
+      - dashboard_backend
+      - springboot_backend
+
   # ===========================
   # Dashboard Frontend (Angular)
   # ===========================
   dashboard_frontend:
     build:
       context: ./apps/dashboard-admin/frontend
-      dockerfile: Dockerfile
     container_name: dashboard_frontend
     ports:
-      - "4200:80"   # Host 4200 → container 80 (Nginx serving Angular)
-    volumes:
-      - ./apps/dashboard-admin/frontend:/app
-      - /app/node_modules
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-      # Point to the backend service name within the Docker network
-      - FASTAPI_BACKEND_URL=http://dashboard_backend:8000
+      - "4200:80"
     networks:
       - portfolio_net
     depends_on:
       dashboard_backend:
         condition: service_healthy
-  
-  # ===========================
-  # Portfolio Frontend (React)
-  # ===========================
+
   # ===========================
   # Portfolio Frontend (React)
   # ===========================
   portfolio_frontend:
     build:
       context: ./apps/portfolio
-      dockerfile: Dockerfile
     container_name: portfolio_frontend
     ports:
-      - "3001:5173"   # React dev server host:container... Look out, as we are using Vite, you have to change it to 5173 from Vite
-    volumes:
-      - ./apps/portfolio:/app
-      - /app/node_modules
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-      - FASTAPI_BACKEND_URL=http://dashboard_backend:8000
+      - "3001:5173"
     networks:
       - portfolio_net
     depends_on:
@@ -84,23 +63,49 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      oracle-db:
-        condition: service_healthy # Ensure both databases are healthy before the backend starts
     env_file:
       - ./.env
     networks:
       - portfolio_net
     healthcheck:
-      test: ["CMD-SHELL", "exit 0"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 5s
-      retries: 1
+      retries: 5
+
+  # ===========================
+  # Spring Boot Backend (Java)
+  # ===========================
+  springboot_backend:
+    build:
+      context: ./apps/dashboard-admin/springboot
+    container_name: springboot_backend
+    restart: always
+    ports:
+      - "8081:8081"
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    networks:
+      - portfolio_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
   # ===========================
   # PostgreSQL Database
   # ===========================
   db:
     image: postgres:16-alpine
     container_name: dashboard_db
+    ports:
+      - "5432:5432"
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -111,10 +116,11 @@ services:
     networks:
       - portfolio_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME} || exit 1"] #ensures db name user etc is ok
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME} || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 5
+
   # ===========================
   # Oracle Database
   # ===========================
@@ -122,36 +128,68 @@ services:
     image: gvenzl/oracle-xe:21-slim
     container_name: oracle-db
     restart: always
-    environment:
-      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
-      ORACLE_ALLOW_REMOTE: "true"
     ports:
       - "1521:1521"
       - "5500:5500"
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
     volumes:
       - oracle-data:/opt/oracle/oradata
-      - ./dbs/oracle-init:/opt/oracle/scripts/setup  # <-- init scripts here
-      - ./.env:/opt/oracle/scripts/setup/.env:ro     # <-- mount your .env here too
     networks:
       - portfolio_net
     healthcheck:
-      test: ["CMD-SHELL", "exit 0"]
+      test: ["CMD-SHELL", "healthcheck.sh"]
       interval: 10s
-      timeout: 5s
-      retries: 1
+      timeout: 10s
+      retries: 5
 
-# ===========================
-# Networks
-# ===========================
+  # ===========================
+  # Kafka & Zookeeper
+  # ===========================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
+    networks:
+      - portfolio_net
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'ruok' | nc localhost 2181 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka
+    networks:
+      - portfolio_net
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
 networks:
   portfolio_net:
     driver: bridge
 
-# ===========================
-# Volumes
-# ===========================
 volumes:
   portfolio_db:
     driver: local
   oracle-data:
-
+    driver: local

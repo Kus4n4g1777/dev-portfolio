@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import List, Annotated
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
-from auth import create_access_token, verify_password, get_password_hash, verify_access_token
+from auth import create_access_token, verify_password, get_password_hash, verify_access_token, log_login_event  # <--- NEW
 from app.database import get_db, engine, Base  # <-- THIS IMPORTS DATABASE.PY
 from app.routes import websocket_routes
 from datetime import datetime, timedelta
@@ -67,6 +67,13 @@ def get_db():
 # Fast API Application
 # --------------------------------------------------------------------------------
 app = FastAPI()
+
+@app.get("/health")
+def health_check():
+    """
+    Simple health check endpoint for Docker.
+    """
+    return {"status": "ok"}
 
 #Include our just created first route (websocket)
 app.include_router(websocket_routes.router)
@@ -137,6 +144,7 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session 
 
 @app.post("/token")
 async def login_for_access_token(
+    request: Request,  # <--- NEW: Add this to get IP address
     response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db)
@@ -155,6 +163,10 @@ async def login_for_access_token(
     
     access_token = create_access_token(data={"sub": user.username})
     refresh_token = create_refresh_token(data={"sub": user.username})
+
+    # 🎯 LOG THE LOGIN EVENT TO LAMBDA
+    client_ip = request.client.host if request.client else "unknown"
+    log_login_event(user.username, source_ip=client_ip)
     
     # Set refresh token as HttpOnly cookie
     response.set_cookie(
