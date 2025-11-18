@@ -1,13 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+  <!-- ============================================ -->
+  <!-- PROJECT METADATA -->
+  <!-- ============================================ -->
   <groupId>com.example</groupId>
   <artifactId>dashboard-springboot</artifactId>
   <version>1.0.0</version>
   <packaging>jar</packaging>
+
+  <name>Dashboard Spring Boot Service</name>
+  <description>Backend service for dashboard with Kafka integration</description>
 
   <!-- ============================ -->
   <!-- Spring Boot Parent -->
@@ -23,33 +30,132 @@
   <!-- Properties -->
   <!-- ============================ -->
   <properties>
+    <!-- Java Version -->
     <java.version>21</java.version>
-    <spring-cloud.version>2023.0.5</spring-cloud.version> <!-- optional, for cloud configs if needed -->
+
+    <!-- Encoding -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+    <!-- Dependency Versions (cuando no vienen del parent) -->
+    <lombok.version>1.18.30</lombok.version>
+    <mapstruct.version>1.5.5.Final</mapstruct.version>
   </properties>
 
-  <!-- ============================ -->
-  <!-- Dependencies -->
-  <!-- ============================ -->
+  <!-- ============================================ -->
+  <!-- DEPENDENCIES -->
+  <!-- ============================================ -->
   <dependencies>
-    <!-- Web -->
+
+    <!-- ========== CORE SPRING BOOT ========== -->
+
+    <!-- Web: REST Controllers, Jackson, Tomcat embebido -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 
-    <!-- PostgreSQL Driver -->
+    <!-- Security: JWT validation, authentication -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <!-- Data JPA: Repository pattern, Hibernate -->
+    <dependency>
+       <groupId>org.springframework.boot</groupId>
+       <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+
+    <!-- Validation: @Valid, @NotBlank, etc. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+
+    <!-- ========== DATABASES ========== -->
+
+    <!-- PostgreSQL Driver (producción) -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
-    <!-- Flyway for migrations -->
+    <!-- H2 Database (testing/desarrollo - opcional) -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>test</scope> <!-- Solo para tests, no en producción -->
+    </dependency>
+
+    <!-- Flyway: Database migrations -->
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-core</artifactId>
     </dependency>
 
-    <!-- DevTools for live reload -->
+    <!-- Necesario para Flyway con PostgreSQL -->
+    <!-- COMENTADO: Esta dependencia no existe en Maven Central para Flyway 9.x -->
+    <!-- Flyway-core es suficiente para PostgreSQL usando el driver JDBC -->
+    <!--
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+      <version>9.22.3</version>
+    </dependency>
+    -->
+
+    <!-- ========== MESSAGING ========== -->
+
+    <!-- Kafka: Producer & Consumer -->
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
+    </dependency>
+
+    <!-- ========== SECURITY & JWT ========== -->
+
+    <!-- JWT API -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>0.11.5</version>
+    </dependency>
+
+    <!-- JWT Implementation -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>0.11.5</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- JWT Jackson (para parsear claims) -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>0.11.5</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- ========== MONITORING & OBSERVABILITY ========== -->
+
+    <!-- Actuator: Health checks, metrics endpoints -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <!-- Prometheus: Metrics export -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+
+    <!-- ========== DEVELOPER TOOLS ========== -->
+
+    <!-- DevTools: Live reload en desarrollo -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-devtools</artifactId>
@@ -57,101 +163,68 @@
       <optional>true</optional>
     </dependency>
 
-    <!-- Testing -->
+    <!-- Lombok: Reduce boilerplate (@Getter, @Setter, etc.) -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <optional>true</optional> <!-- Correcto para compile-time annotation processor -->
+    </dependency>
+
+    <!-- MapStruct: DTO <-> Entity mapping (OPCIONAL - más avanzado) -->
+    <dependency>
+      <groupId>org.mapstruct</groupId>
+      <artifactId>mapstruct</artifactId>
+      <version>${mapstruct.version}</version>
+    </dependency>
+
+    <!-- ========== TESTING ========== -->
+
+    <!-- Spring Boot Test: JUnit, Mockito, AssertJ -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
 
-    <!-- Actuator -->
+    <!-- Spring Security Test: Para testear endpoints protegidos -->
     <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-actuator</artifactId>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
     </dependency>
 
-    <!-- Prometheus for monitoring -->
-    <dependency>
-        <groupId>io.micrometer</groupId>
-        <artifactId>micrometer-registry-prometheus</artifactId>
-    </dependency>
-
-    <!-- Spring Boot Starter Web -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-
-    <!-- Spring Boot Starter Security -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-security</artifactId>
-    </dependency>
-
-    <!-- Spring Data JPA -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-jpa</artifactId>
-    </dependency>
-
-    <!-- H2 Database (or your database) -->
-    <dependency>
-        <groupId>com.h2database</groupId>
-        <artifactId>h2</artifactId>
-        <scope>runtime</scope>
-    </dependency>
-
-    <!-- JWT -->
-    <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-api</artifactId>
-        <version>0.11.5</version>
-    </dependency>
-    <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-impl</artifactId>
-        <version>0.11.5</version>
-        <scope>runtime</scope>
-    </dependency>
-    <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-jackson</artifactId>
-        <version>0.11.5</version>
-        <scope>runtime</scope>
-    </dependency>
-    <!-- Spring for Kafka -->
+    <!-- Kafka Test: Embedded Kafka para tests -->
     <dependency>
       <groupId>org.springframework.kafka</groupId>
-      <artifactId>spring-kafka</artifactId>
+      <artifactId>spring-kafka-test</artifactId>
+      <scope>test</scope>
     </dependency>
 
-    <!-- Jackson for JSON (already in Spring Boot usually) -->
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
   </dependencies>
 
-  <!-- ============================ -->
-  <!-- Build Plugins -->
-  <!-- ============================ -->
+  <!-- ============================================ -->
+  <!-- BUILD CONFIGURATION -->
+  <!-- ============================================ -->
   <build>
     <plugins>
-      <!-- Spring Boot Maven Plugin -->
+
+      <!-- Spring Boot Maven Plugin: Empaqueta como JAR ejecutable -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
-        <version>3.2.1</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>repackage</goal>
-            </goals>
-          </execution>
-        </executions>
+        <configuration>
+          <excludes>
+            <!-- Lombok no se necesita en runtime -->
+            <exclude>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </exclude>
+          </excludes>
+        </configuration>
       </plugin>
 
-      <!-- Compiler Plugin -->
+      <!-- Compiler Plugin: Configura annotation processors -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -159,24 +232,30 @@
         <configuration>
           <source>${java.version}</source>
           <target>${java.version}</target>
+          <annotationProcessorPaths>
+            <!-- Lombok annotation processor -->
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${lombok.version}</version>
+            </path>
+            <!-- MapStruct annotation processor (si lo usas) -->
+            <path>
+              <groupId>org.mapstruct</groupId>
+              <artifactId>mapstruct-processor</artifactId>
+              <version>${mapstruct.version}</version>
+            </path>
+              <!-- Lombok-MapStruct binding: Permite que ambos trabajen juntos -->
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok-mapstruct-binding</artifactId>
+              <version>0.2.0</version>
+            </path>
+          </annotationProcessorPaths>
         </configuration>
       </plugin>
+
     </plugins>
   </build>
 
-  <!-- ============================ -->
-  <!-- Dependency Management (optional) -->
-  <!-- ============================ -->
-  <dependencyManagement>
-    <dependencies>
-      <!-- Spring Cloud BOM, if needed -->
-      <dependency>
-        <groupId>org.springframework.cloud</groupId>
-        <artifactId>spring-cloud-dependencies</artifactId>
-        <version>${spring-cloud.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 </project>
