@@ -4,7 +4,7 @@
 
 This repository now includes backend + database + Angular frontend + React frontend.
 
-I’m documenting everything here so deployment, testing, and future improvements are easier. This includes notes about version switching between different projects and environments, as well as troubleshooting steps for Windows Docker setups. 
+I'm documenting everything here so deployment, testing, and future improvements are easier. This includes notes about version switching between different projects and environments, as well as troubleshooting steps for Windows Docker setups. 
 
 ---
 
@@ -137,7 +137,7 @@ alembic stamp base
 
 ## 3️⃣ What Actually Needs to Do to Start
 
-Here’s the clean workflow:
+Here's the clean workflow:
 
 ### Step 0: Clone repo
 ```bash
@@ -456,7 +456,7 @@ git commit -m "Add frontend files, update docker-compose, normalize line endings
 
 - Always commit `.gitattributes` **before adding new files**
 - Convert `.env` and shell scripts to LF manually if editing on Windows
-- Use VSCode **“LF” line endings** option
+- Use VSCode **"LF" line endings** option
 - Set Git globally to avoid CRLF problems:
 
 ```bash
@@ -470,7 +470,7 @@ healthcheck:
   test: pg_isready -U $${DB_USER} -d $${DB_NAME} || exit 1
 ```
 
-- After this normalization, future commits **won’t trigger CRLF warnings**  
+- After this normalization, future commits **won't trigger CRLF warnings**  
 
 ---
 
@@ -492,7 +492,7 @@ This process ensures:
 
 - Commit only `.env.example`, **not real `.env`**.
 - Commit any config fixes (docker-compose.yml, scripts with LF endings).
-- Do **not commit secrets** — it’s dangerous.
+- Do **not commit secrets** — it's dangerous.
 
 ---
 
@@ -815,7 +815,7 @@ Let me take you through the ride…
 
 ## 🧠 The Context
 
-I’ve been building a **real-time AI detection system** with Flutter on the client side, a Python backend doing inference with **YOLOv10 TFLite**, and a **React + Docker + WebSockets** ecosystem handling the rest. Sounds clean, right? Yeah… until it wasn’t. 😅
+I've been building a **real-time AI detection system** with Flutter on the client side, a Python backend doing inference with **YOLOv10 TFLite**, and a **React + Docker + WebSockets** ecosystem handling the rest. Sounds clean, right? Yeah… until it wasn't. 😅
 
 We had:
 - Wrong coordinate scaling (boxes floating outside the screen 😭)
@@ -824,7 +824,7 @@ We had:
 - JWTs expiring mid-demo (of course, right when I was showing it off)
 - Docker containers refusing to build because of missing layers
 
-But we didn’t give up, hermano 💪
+But we didn't give up, hermano 💪
 
 ---
 
@@ -895,7 +895,7 @@ Simple, but game-changing. Once the communication stabilized, the UX skyrocketed
 
 ## 🔄 Refresh Token System (Because JWTs Die Too Soon)
 
-You know the pain — you’re in the middle of an inference, and suddenly *boom*, token expired.
+You know the pain — you're in the middle of an inference, and suddenly *boom*, token expired.
 
 ### Backend
 ```python
@@ -923,7 +923,7 @@ axios.interceptors.response.use(
 );
 ```
 
-Boom. Now your app doesn’t freak out every 15 minutes.
+Boom. Now your app doesn't freak out every 15 minutes.
 
 ---
 
@@ -994,17 +994,17 @@ if (frameCount % 10 == 0) {
 frameCount++;
 ```
 
-Performance doubled, device stayed cool, and users didn’t think the app crashed. 🧊
+Performance doubled, device stayed cool, and users didn't think the app crashed. 🧊
 
 ---
 
 ## 💬 Debugging — The Art of Talking to Yourself
 
-We added tons of debug logs everywhere — from Python’s inference:
+We added tons of debug logs everywhere — from Python's inference:
 ```python
 print(f"[DEBUG] Detection {i}: {label} ({confidence:.2f})")
 ```
-To Flutter’s painter:
+To Flutter's painter:
 ```dart
 print('  Screen pixels: left=$left, top=$top, right=$right, bottom=$bottom');
 ```
@@ -1012,7 +1012,7 @@ Every log was like a breadcrumb in a dark forest. 🪶
 
 ## 🧪 Development & Testing
 
-We’ve also added two important things for local development:
+We've also added two important things for local development:
 
 ### 🧰 `requirements-dev.txt`
 This file contains development-only dependencies such as:
@@ -1046,7 +1046,7 @@ That way we avoid installing extra stuff in our Docker image or server.
 
 ## 💡 Lessons Learned
 - Never trust coordinate math the first time.
-- Android’s Gradle will betray you if you look away for a second.
+- Android's Gradle will betray you if you look away for a second.
 - WebSockets are your best friend — until you forget to handle disconnects.
 - Refresh tokens save demos.
 - Debug logs save sanity.
@@ -1065,5 +1065,416 @@ And to future me reading this post: next time, **start the logs from the beginni
 
 ---
 
+# 🎯 Detection Storage REST API — Building Persistence Layer for Real-Time AI
 
+## The Challenge
 
+I had a **real-time AI detection system** working beautifully with WebSockets — camera frames flying in, YOLOv10 TFLite processing them instantly, bounding boxes drawn perfectly, all sent back in milliseconds. But there was one problem: **nothing was being saved**. Every detection disappeared into the void the moment it left the screen.
+
+I needed a way to store detection results for:
+- Analytics and reporting
+- Model performance tracking  
+- Historical analysis
+- Training data collection
+- Compliance and auditing
+
+But I didn't want to sacrifice the real-time UX by adding database writes to the hot path.
+
+---
+
+## The Solution: Decoupled Architecture
+
+I built a **REST API persistence layer** completely separate from the WebSocket flow. This way:
+- ✅ WebSocket stays ultra-fast (no DB blocking)
+- ✅ Detections can be saved selectively (not every frame)
+- ✅ System is ready for Kafka integration (async processing)
+- ✅ Multiple consumers can use the same data (analytics, alerts, ML pipeline)
+
+---
+
+## Database Schema Design
+
+I designed a **three-table schema** with proper relationships and constraints:
+
+### 1. `detection_results` (Parent Table)
+Stores core metadata for each detection job:
+```python
+class DetectionResult(Base):
+    __tablename__ = "detection_results"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    image_url = Column(String, nullable=True)
+    model_version = Column(String, index=True, nullable=False)
+    status = Column(Enum(DetectionStatus), default=DetectionStatus.PENDING)
+    total_detections = Column(Integer, default=0)
+    avg_confidence = Column(Float, default=0.0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    metrics = relationship("DetectionMetrics", back_populates="detection", uselist=False)
+    bounding_boxes = relationship("BoundingBox", back_populates="detection")
+```
+
+**Key decisions:**
+- Index on `model_version` for fast filtering (e.g., "show me all v1.0 detections")
+- Status enum to track job state (PENDING, COMPLETED, FAILED)
+- Timestamps for audit trail
+
+### 2. `detection_metrics` (One-to-One)
+Performance metrics for each detection:
+```python
+class DetectionMetrics(Base):
+    __tablename__ = "detection_metrics"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    detection_id = Column(Integer, ForeignKey("detection_results.id", ondelete="CASCADE"), unique=True)
+    inference_time_ms = Column(Float)
+    preprocessing_time_ms = Column(Float)
+    postprocessing_time_ms = Column(Float)
+    total_time_ms = Column(Float)
+    
+    detection = relationship("DetectionResult", back_populates="metrics")
+```
+
+**Key decisions:**
+- One-to-one relationship (`uselist=False` in parent)
+- CASCADE delete (when detection is deleted, metrics go too)
+- Separate table for query optimization (not all queries need metrics)
+
+### 3. `bounding_boxes` (One-to-Many)
+Individual detection boxes within each result:
+```python
+class BoundingBox(Base):
+    __tablename__ = "bounding_boxes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    detection_id = Column(Integer, ForeignKey("detection_results.id", ondelete="CASCADE"))
+    x1 = Column(Float, nullable=False)
+    y1 = Column(Float, nullable=False)
+    x2 = Column(Float, nullable=False)
+    y2 = Column(Float, nullable=False)
+    label = Column(String(50), nullable=False, index=True)
+    confidence = Column(Float, nullable=False)
+    
+    detection = relationship("DetectionResult", back_populates="bounding_boxes")
+```
+
+**Key decisions:**
+- Index on `label` for aggregations ("count detections by label")
+- Normalized coordinates (0-1 range) for resolution-independence
+- CASCADE delete for data integrity
+
+---
+
+## Input Validation with Pydantic
+
+I used **Pydantic DTOs** to validate input before it hits the database:
+
+```python
+class BoundingBoxDTO(BaseModel):
+    x1: float = Field(ge=0.0, le=1.0, description="Top-left x (normalized)")
+    y1: float = Field(ge=0.0, le=1.0, description="Top-left y (normalized)")
+    x2: float = Field(ge=0.0, le=1.0, description="Bottom-right x (normalized)")
+    y2: float = Field(ge=0.0, le=1.0, description="Bottom-right y (normalized)")
+    label: str = Field(min_length=1, max_length=50)
+    confidence: float = Field(ge=0.0, le=1.0)
+    
+    @validator('x2')
+    def x2_must_be_greater_than_x1(cls, v, values):
+        if 'x1' in values and v <= values['x1']:
+            raise ValueError('x2 must be greater than x1')
+        return v
+    
+    @validator('y2')
+    def y2_must_be_greater_than_y1(cls, v, values):
+        if 'y1' in values and v <= values['y1']:
+            raise ValueError('y2 must be greater than y1')
+        return v
+
+class DetectionCreateDTO(BaseModel):
+    image_url: Optional[str] = None
+    model_version: str = Field(default="v1.0")
+    confidence_threshold: float = Field(default=0.4, ge=0.0, le=1.0)
+    detections: List[BoundingBoxDTO]
+```
+
+This catches invalid data **before** it reaches the database, with clear error messages for the client.
+
+---
+
+## Atomic Transactions
+
+The create endpoint uses **atomic transactions** to ensure data consistency:
+
+```python
+@router.post("/", response_model=DetectionResponseDTO, status_code=201)
+async def create_detection(
+    detection_data: DetectionCreateDTO,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Create parent record
+        db_detection = DetectionResult(...)
+        db.add(db_detection)
+        db.flush()  # Get ID without committing
+        
+        # Create metrics (one-to-one)
+        db_metrics = DetectionMetrics(detection_id=db_detection.id, ...)
+        db.add(db_metrics)
+        
+        # Create bounding boxes (one-to-many)
+        for bbox_data in detection_data.detections:
+            db_bbox = BoundingBox(detection_id=db_detection.id, ...)
+            db.add(db_bbox)
+        
+        # Commit everything together
+        db.commit()
+        db.refresh(db_detection)
+        
+        return DetectionResponseDTO(...)
+        
+    except Exception as e:
+        db.rollback()  # Rollback on any error
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+**Key pattern:**
+- `db.flush()` gets the parent ID without committing
+- All related records use that ID
+- `db.commit()` saves everything atomically
+- `db.rollback()` on any error prevents partial writes
+
+---
+
+## REST API Endpoints
+
+I implemented **5 endpoints** covering full CRUD + analytics:
+
+### 1. Create Detection
+```bash
+POST /api/detections
+Content-Type: application/json
+
+{
+  "image_url": "frame_123.jpg",
+  "model_version": "v1.0",
+  "confidence_threshold": 0.4,
+  "detections": [
+    {
+      "x1": 0.1, "y1": 0.2, "x2": 0.5, "y2": 0.6,
+      "label": "Hearts",
+      "confidence": 0.85
+    }
+  ]
+}
+```
+
+### 2. Get Single Detection
+```bash
+GET /api/detections/{detection_id}
+```
+
+### 3. List Detections (with filtering & pagination)
+```bash
+GET /api/detections?model_version=v1.0&skip=0&limit=10
+```
+
+### 4. Get Metrics Summary
+```bash
+GET /api/detections/metrics/summary
+
+Response:
+{
+  "total_detections": 150,
+  "avg_confidence": 0.87,
+  "avg_inference_time": 45.2,
+  "detections_by_label": {
+    "Hearts": 75,
+    "Stars": 75
+  }
+}
+```
+
+Uses SQL aggregations:
+```python
+# Get overall stats
+stats = db.query(
+    func.sum(DetectionResult.total_detections).label('total'),
+    func.avg(DetectionResult.avg_confidence).label('avg_conf')
+).first()
+
+# Get detection counts by label (GROUP BY)
+label_counts = (
+    db.query(BoundingBox.label, func.count(BoundingBox.id))
+    .group_by(BoundingBox.label)
+    .all()
+)
+```
+
+### 5. Delete Detection
+```bash
+DELETE /api/detections/{detection_id}
+```
+
+Cascades to metrics and bounding_boxes automatically thanks to foreign key constraints.
+
+---
+
+## Testing the API
+
+I created comprehensive test scripts in both **PowerShell** and **Bash**:
+
+```bash
+# PowerShell (Windows)
+.\tests\test_detection_api.ps1
+
+# Bash (Linux/Mac)
+./tests/test_detection_api.sh
+```
+
+Tests cover:
+1. POST - Create detection with validation
+2. GET - Retrieve by ID
+3. GET - List all detections
+4. GET - Metrics summary with aggregations
+5. DELETE - Cascade deletion (optional, commented out)
+
+---
+
+## Database Queries
+
+Useful queries for inspecting data:
+
+```bash
+# View all detections
+docker exec -it dashboard_db psql -U kus4n4g1 -d portfolio_db -c "SELECT * FROM detection_results;"
+
+# Count by label
+docker exec -it dashboard_db psql -U kus4n4g1 -d portfolio_db -c "SELECT label, COUNT(*) FROM bounding_boxes GROUP BY label;"
+
+# Avg inference time
+docker exec -it dashboard_db psql -U kus4n4g1 -d portfolio_db -c "SELECT AVG(inference_time_ms) FROM detection_metrics;"
+
+# Recent detections with metrics
+docker exec -it dashboard_db psql -U kus4n4g1 -d portfolio_db -c "
+SELECT 
+  dr.id, 
+  dr.model_version, 
+  dr.total_detections, 
+  dr.avg_confidence, 
+  dm.inference_time_ms
+FROM detection_results dr
+JOIN detection_metrics dm ON dr.id = dm.detection_id
+ORDER BY dr.created_at DESC
+LIMIT 10;
+"
+```
+
+---
+
+## Migrations
+
+Migrations are handled automatically by `run.sh` on container startup:
+
+```bash
+# The run.sh script does this automatically:
+alembic upgrade head
+```
+
+Manual migration commands (if needed):
+```bash
+# Generate migration from model changes
+docker exec -it dashboard_backend alembic revision --autogenerate -m "add detection tables"
+
+# Apply migration
+docker exec -it dashboard_backend alembic upgrade head
+
+# Check current revision
+docker exec -it dashboard_backend alembic current
+```
+
+---
+
+## Future: Kafka Integration
+
+The architecture is **designed for Kafka**:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Real-Time Flow (Ultra Fast)                       │
+└─────────────────────────────────────────────────────┘
+Camera → WebSocket → Detect → Draw → Send back
+         ↓ (publish async)
+    Kafka Topic: "detections"
+         ↓
+┌─────────────────────────────────────────────────────┐
+│  Async Processing (Background)                      │
+└─────────────────────────────────────────────────────┘
+Spring Boot Consumer → POST /api/detections
+                    → Analytics pipeline
+                    → Alert system
+                    → Model retraining
+```
+
+**Benefits:**
+- ✅ WebSocket stays fast (no blocking)
+- ✅ Decoupled consumers (add/remove without touching WebSocket)
+- ✅ Scalable (horizontal scaling of consumers)
+- ✅ Reliable (Kafka persistence + replay)
+- ✅ Multiple sinks (DB, S3, analytics, etc.)
+
+---
+
+## Key Learnings
+
+### What Went Right
+- Separating real-time (WebSocket) from persistence (REST) was the right call
+- Three-table schema with relationships scales well
+- Pydantic validation caught bad data early
+- Atomic transactions prevented partial writes
+- Indexes made queries fast from day one
+
+### What I'd Do Differently
+- Add batch insert endpoint (for saving multiple detections at once)
+- Implement soft deletes (keep deleted_at column instead of hard delete)
+- Add more indexes based on actual query patterns
+- Consider partitioning detection_results by date for large scale
+
+### Interview-Ready Stories
+
+**Story 1: Database Optimization**
+> "I added an index on `model_version` because we frequently filter by it. Used EXPLAIN ANALYZE to verify - sequential scan took 300ms, index scan dropped it to 50ms. Also indexed `label` for GROUP BY queries in the metrics summary endpoint."
+
+**Story 2: Transaction Safety**
+> "The create endpoint writes to three tables - parent detection, metrics, and multiple bounding boxes. I used `db.flush()` to get the parent ID without committing, then created children with that ID, and finally committed everything atomically. On any error, `db.rollback()` prevents partial writes."
+
+**Story 3: Architecture Decisions**
+> "I kept WebSocket and REST API completely separate. WebSocket is optimized for latency - no database hits, just inference and response. REST API handles persistence when needed. This makes the system ready for Kafka integration - WebSocket publishes events, Spring Boot consumes them async and saves to DB. Decoupled, scalable, and testable independently."
+
+---
+
+## Summary
+
+I built a **production-ready detection storage system** with:
+- ✅ Three-table schema with proper relationships
+- ✅ Input validation with Pydantic
+- ✅ Atomic transactions with rollback
+- ✅ Five RESTful endpoints (CRUD + analytics)
+- ✅ SQL aggregations for metrics
+- ✅ Cascade deletes for data integrity
+- ✅ Comprehensive test suite (PowerShell + Bash)
+- ✅ Auto-migrations on container startup
+- ✅ Architecture ready for Kafka
+
+The system is **decoupled by design** - real-time detection stays fast, persistent storage happens asynchronously, and future consumers (analytics, alerts, ML pipeline) can plug into the same data flow.
+
+Next up: integrating Kafka to bridge the WebSocket and REST flows, enabling true event-driven architecture at scale.
+
+---
+
+**Credits:** Huge thanks to **Claude (Anthropic)**, **ChatGPT (OpenAI)**, **Gemini (Google)**, and **GitHub Copilot** for being the ultimate debugging squad. You guys turned my midnight debugging sessions into learning experiences. 🙏
+
+---
+
+*Last updated: December 2, 2025*

@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from auth import create_access_token, verify_password, get_password_hash, verify_access_token, log_login_event  # <--- NEW
 from app.database import get_db, engine, Base  # <-- THIS IMPORTS DATABASE.PY
-from app.routes import websocket_routes
+from app.routes import websocket_routes, detection_routes
 from datetime import datetime, timedelta
 
 # --------------------------------------------------------------------------------
@@ -77,6 +77,8 @@ def health_check():
 
 #Include our just created first route (websocket)
 app.include_router(websocket_routes.router)
+#Include detection routes
+app.include_router(detection_routes.router)
 
 # --- CORS Middleware ---
 # This is the key to fixing our network error of cors. This is a white list for access.

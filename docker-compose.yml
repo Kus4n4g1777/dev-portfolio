@@ -42,7 +42,7 @@ services:
       context: ./apps/portfolio
     container_name: portfolio_frontend
     ports:
-      - "3001:5173"
+      - "3001:80"
     networks:
       - portfolio_net
     depends_on:
