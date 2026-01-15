@@ -70,4 +70,11 @@ apps/dashboard-admin/frontend-angular/
 # ========== INTELLIJ IDEA (adicionales) ==========
 **/*.iws
 **/*.iml
+
+# ========== DART ============
 **/*.ipr
+.dart_tool/
+
+# ========== GO ==========
+*.test
+apps/go-runtime/go-runtime

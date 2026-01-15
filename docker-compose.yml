@@ -183,9 +183,51 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
+  
+  # =========================================
+  # LLM gateway, dart runtime and go runtime
+  # =========================================
+  llm-gateway:
+    build: ./apps/llm-gateway
+    container_name: llm-gateway
+    ports:
+      - "8002:8000" 
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DART_SERVICE_URL=http://dart-runtime:8080
+      - GO_SERVICE_URL=http://go-runtime:8081
+    depends_on:
+      - dart-runtime
+      - go-runtime
+    networks:
+      - portfolio_net
+
+  dart-runtime:
+    build: ./apps/dart-runtime
+    container_name: dart-runtime
+    ports:
+      - "8090:8080" 
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PORT=8080
+    networks:
+      - portfolio_net
+  
+  go-runtime:
+    build: ./apps/go-runtime
+    container_name: go-runtime
+    ports:
+      - "8091:8081"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PORT=8081
+    networks:
+      - portfolio_net
+
 
 networks:
   portfolio_net:
+    name: portfolio-network
     driver: bridge
 
 volumes:
