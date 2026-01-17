@@ -1,8 +1,9 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
 import numpy as np
 import cv2
 import base64
-from detection_model.detector import detect  # your TFLite detection function
+import httpx
+from detection_model.detector import detect  # my TFLite detection function
 
 router = APIRouter(
     prefix="/ws",
@@ -85,3 +86,65 @@ async def websocket_dashboard(websocket: WebSocket):
     except WebSocketDisconnect:
         print(f"❌ Client disconnected: {websocket.client.host}")
         active_connections.remove(websocket)
+
+@router.post("/detect-and-describe")
+async def detect_and_describe_image(file: UploadFile = File(...)):
+    """
+    Upload image, detect with YOLO, describe with LLM.
+    
+    Combines:
+    - YOLO detection (existing)
+    - LLM description (new)
+    """
+    try:
+        # Read image
+        contents = await file.read()
+        img_bytes = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
+        
+        # Run YOLO detection
+        detections = detect(img)
+        
+        # Get LLM descriptions for top 3 detections
+        llm_descriptions = []
+        async with httpx.AsyncClient() as client:
+            for det in detections[:3]:  # Limit to save time
+                try:
+                    response = await client.post(
+                        "http://llm-gateway:8000/describe-detection",
+                        json={
+                            "object": det["label"],
+                            "confidence": det["confidence"]
+                        },
+                        timeout=10.0
+                    )
+                    
+                    if response.status_code == 200:
+                        llm_data = response.json()
+                        llm_descriptions.append({
+                            "object": det["label"],
+                            "confidence": det["confidence"],
+                            "description": llm_data.get("primary", {}).get("response"),
+                            "runtime": llm_data.get("primary", {}).get("runtime")
+                        })
+                except Exception as e:
+                    llm_descriptions.append({
+                        "object": det["label"],
+                        "error": str(e)
+                    })
+        
+        # Draw annotated image
+        annotated = draw_detections(img.copy(), detections)
+        encoded_img = encode_base64_image(annotated)
+        
+        return {
+            "detections": detections,
+            "llm_descriptions": llm_descriptions,
+            "annotated_image": encoded_img
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error: {str(e)}"
+        )

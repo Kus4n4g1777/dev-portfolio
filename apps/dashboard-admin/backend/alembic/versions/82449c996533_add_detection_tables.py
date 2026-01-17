@@ -58,9 +58,22 @@ def upgrade() -> None:
     sa.UniqueConstraint('detection_id')
     )
     op.create_index(op.f('ix_detection_metrics_id'), 'detection_metrics', ['id'], unique=False)
-    op.drop_table('post')
-    op.drop_index(op.f('flyway_schema_history_s_idx'), table_name='flyway_schema_history')
-    op.drop_table('flyway_schema_history')
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    if 'post' in inspector.get_table_names():
+        op.drop_table('post')
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    if 'post' in inspector.get_table_names():
+        op.drop_table('post')
+    
+    # Drop flyway tables if they exist (from old migration system)
+    if 'flyway_schema_history' in inspector.get_table_names():
+        try:
+            op.drop_index(op.f('flyway_schema_history_s_idx'), table_name='flyway_schema_history')
+        except:
+            pass  # Index might not exist
+        op.drop_table('flyway_schema_history')
     # ### end Alembic commands ###
 
 
@@ -81,14 +94,18 @@ def downgrade() -> None:
     sa.PrimaryKeyConstraint('installed_rank', name=op.f('flyway_schema_history_pk'))
     )
     op.create_index(op.f('flyway_schema_history_s_idx'), 'flyway_schema_history', ['success'], unique=False)
-    op.create_table('post',
-    sa.Column('id', sa.BIGINT(), autoincrement=True, nullable=False),
-    sa.Column('author', sa.VARCHAR(length=255), autoincrement=False, nullable=True),
-    sa.Column('content', sa.VARCHAR(length=255), autoincrement=False, nullable=True),
-    sa.Column('created_at', postgresql.TIMESTAMP(precision=6), autoincrement=False, nullable=True),
-    sa.Column('title', sa.VARCHAR(length=255), autoincrement=False, nullable=True),
-    sa.PrimaryKeyConstraint('id', name=op.f('post_pkey'))
-    )
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    
+    if 'post' not in inspector.get_table_names():
+        op.create_table('post',
+        sa.Column('id', sa.BIGINT(), autoincrement=True, nullable=False),
+        sa.Column('author', sa.VARCHAR(length=255), autoincrement=False, nullable=True),
+        sa.Column('content', sa.VARCHAR(length=255), autoincrement=False, nullable=True),
+        sa.Column('created_at', postgresql.TIMESTAMP(precision=6), autoincrement=False, nullable=True),
+        sa.Column('title', sa.VARCHAR(length=255), autoincrement=False, nullable=True),
+        sa.PrimaryKeyConstraint('id', name=op.f('post_pkey'))
+        )
     op.drop_index(op.f('ix_detection_metrics_id'), table_name='detection_metrics')
     op.drop_table('detection_metrics')
     op.drop_index(op.f('ix_bounding_boxes_label'), table_name='bounding_boxes')

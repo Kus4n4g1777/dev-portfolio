@@ -120,6 +120,28 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  
+  # ===========================
+  # Vector Database (RAG)
+  # ===========================
+  vector_db:
+    image: pgvector/pgvector:pg16
+    container_name: vector_db
+    environment:
+      POSTGRES_USER: vector_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: vector_store
+    ports:
+      - "5433:5432"  # ← Puerto diferente para no conflictar
+    volumes:
+      - vector_db_data:/var/lib/postgresql/data
+    networks:
+      - portfolio_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vector_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # ===========================
   # Oracle Database
@@ -184,9 +206,9 @@ services:
       timeout: 10s
       retries: 5
   
-  # =========================================
-  # LLM gateway, dart runtime and go runtime
-  # =========================================
+  # =================================================================
+  # LLM gateway, dart runtime, go runtime, and ollama runtime (local)
+  # =================================================================
   llm-gateway:
     build: ./apps/llm-gateway
     container_name: llm-gateway
@@ -224,6 +246,15 @@ services:
     networks:
       - portfolio_net
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - portfolio_net
 
 networks:
   portfolio_net:
@@ -234,4 +265,8 @@ volumes:
   portfolio_db:
     driver: local
   oracle-data:
+    driver: local
+  ollama-data:
+    driver: local
+  vector_db_data:
     driver: local
