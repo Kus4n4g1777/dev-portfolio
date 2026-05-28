@@ -1,0 +1,20 @@
+{
+  "name": "graphql-gateway",
+  "version": "1.0.0",
+  "description": "Unified GraphQL API Gateway — portfolio microservices",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@apollo/server": "^4.11.0",
+    "graphql": "^16.9.0",
+    "dataloader": "^2.2.2",
+    "node-fetch": "^3.3.2",
+    "kafkajs": "^2.2.4",
+    "jsonwebtoken": "^9.0.2",
+    "graphql-subscriptions": "^2.0.0"
+  }
+}

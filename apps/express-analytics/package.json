@@ -1,0 +1,11 @@
+{
+  "name": "express-analytics",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.19.0",
+    "mongoose": "^8.1.0",
+    "kafkajs": "^2.2.4"
+  }
+}

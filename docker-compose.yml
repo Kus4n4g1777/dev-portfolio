@@ -120,7 +120,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-  
+
   # ===========================
   # Vector Database (RAG)
   # ===========================
@@ -132,7 +132,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: vector_store
     ports:
-      - "5433:5432"  # ← Puerto diferente para no conflictar
+      - "5433:5432"
     volumes:
       - vector_db_data:/var/lib/postgresql/data
     networks:
@@ -205,22 +205,25 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
-  
+
   # =================================================================
-  # LLM gateway, dart runtime, go runtime, and ollama runtime (local)
+  # LLM Gateway, Dart runtime, Go runtime, and Ollama runtime (local)
   # =================================================================
   llm-gateway:
     build: ./apps/llm-gateway
     container_name: llm-gateway
     ports:
-      - "8002:8000" 
+      - "8002:8000"
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - DART_SERVICE_URL=http://dart-runtime:8080
       - GO_SERVICE_URL=http://go-runtime:8081
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC=llm.inference.events
     depends_on:
       - dart-runtime
       - go-runtime
+      - kafka
     networks:
       - portfolio_net
 
@@ -228,13 +231,13 @@ services:
     build: ./apps/dart-runtime
     container_name: dart-runtime
     ports:
-      - "8090:8080" 
+      - "8090:8080"
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - PORT=8080
     networks:
       - portfolio_net
-  
+
   go-runtime:
     build: ./apps/go-runtime
     container_name: go-runtime
@@ -256,6 +259,88 @@ services:
     networks:
       - portfolio_net
 
+  # ===========================
+  # MongoDB (Analytics Store)
+  # ===========================
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - portfolio_net
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================
+  # Express Analytics Service
+  # ===========================
+  express-analytics:
+    build:
+      context: ./apps/express-analytics
+    container_name: express_analytics
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGO_URL=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=admin
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC=llm.inference.events
+      - PORT=3000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - portfolio_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================
+  # GraphQL API Gateway
+  # ===========================
+  graphql-gateway:
+    build:
+      context: ./apps/graphql-gateway
+    container_name: graphql-gateway
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - FASTAPI_URL=http://dashboard_backend:8000
+      - SPRINGBOOT_URL=http://springboot_backend:8081
+      - ANALYTICS_URL=http://express_analytics:3000
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=development
+    depends_on:
+      dashboard_backend:
+        condition: service_healthy
+      springboot_backend:
+        condition: service_healthy
+      express-analytics:
+        condition: service_healthy
+    networks:
+      - portfolio_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/.well-known/apollo/server-health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 networks:
   portfolio_net:
     name: portfolio-network
@@ -269,4 +354,6 @@ volumes:
   ollama-data:
     driver: local
   vector_db_data:
+    driver: local
+  mongodb_data:
     driver: local

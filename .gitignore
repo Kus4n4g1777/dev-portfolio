@@ -17,6 +17,11 @@ Thumbs.db
 *.swo  # Vim swap files
 *.log
 
+# Antigravity / AI tooling
+.antigravity/
+antigravitycli/
+.antigravitycli/
+
 # Build outputs for other languages/frameworks you might add
 # For C++
 build/
