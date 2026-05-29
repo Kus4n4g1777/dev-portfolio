@@ -1,9 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from services.kafka_producer import kafka_producer
 import httpx
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
+import asyncio
+import time as _time
 import logging
 
 load_dotenv()
@@ -11,7 +14,18 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="LLM Gateway", version="1.0.0")
+from contextlib import asynccontextmanager
+ 
+@asynccontextmanager
+async def lifespan(app):
+    # Nothing to do on startup — kafka_producer uses lazy init
+    yield
+    # Graceful shutdown: flush Kafka producer before process exits
+    await kafka_producer.stop()
+
+app = FastAPI(title="LLM Gateway", version="1.0.0", lifespan=lifespan)
+
+
 
 # Configure Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -366,22 +380,63 @@ class DetectionRequest(BaseModel):
 @app.post("/buffer/add-detection")
 async def add_detection_to_buffer(request: DetectionRequest):
     """
-    Add detection to buffer
-    Returns AI response when buffer is full (or cached instantly)
+    Add a YOLO detection to the buffer.
+
+    When the buffer reaches capacity (default: 4 detections), the
+    DetectionBufferService flushes and calls the LLM Gateway to generate
+    an AI commentary response. That response is returned to the Flutter
+    client AND published to Kafka for async analytics persistence.
+
+    Two outcomes per call:
+    1. Buffer not full yet → returns { status: "buffered", buffer_count, ... }
+    2. Buffer full → LLM response generated →
+          a. Response returned to Flutter client (synchronous, immediate)
+          b. Inference event published to Kafka (async, fire-and-forget)
+             → consumed by Express Analytics → persisted to MongoDB
+
+    Why fire-and-forget for Kafka?
+    The Flutter client is blocked waiting for the detection result.
+    Kafka publish latency (~5-20ms) must not add to that response time.
+    asyncio.create_task() runs the publish concurrently — the HTTP
+    response returns before the Kafka send completes.
     """
     try:
         service = get_buffer_service()
-        result = service.add_detection(request.detection)  # ← FIX: request.detection
-        
+
+        # Capture latency for the Kafka event
+        start = _time.time()
+        result = service.add_detection(request.detection)
+        latency_ms = (_time.time() - start) * 1000
+
         if result:
+            # Buffer flushed — LLM response generated
+            # Publish to Kafka async so we don't delay the Flutter response
+            asyncio.create_task(
+                kafka_producer.publish_inference_event(
+                    # session_id: use detection label as a simple grouping key
+                    # In production: pass a real session UUID from the Flutter client
+                    session_id   = request.detection.get("label", "unknown"),
+                    detections   = [request.detection],
+                    runtime      = result.get("runtime", "unknown"),
+                    cache_hit    = result.get("cache_hit", False),
+                    latency_ms   = latency_ms,
+                    response     = result.get("ai_response", ""),
+                    cache_key_hash = result.get("cache_key", ""),
+                    miss_reason  = "" if result.get("cache_hit") else "new_detection_pattern",
+                )
+            )
+
             return result
+
         else:
+            # Buffer not full yet — no LLM call made, nothing to publish
             return {
-                "status": "buffered",
+                "status":       "buffered",
                 "buffer_count": len(service.buffer),
-                "buffer_size": service.buffer_size,
-                "message": f"Detection buffered ({len(service.buffer)}/{service.buffer_size})"
+                "buffer_size":  service.buffer_size,
+                "message":      f"Detection buffered ({len(service.buffer)}/{service.buffer_size})"
             }
+
     except Exception as e:
         import logging
         logging.error(f"Error in add_detection_to_buffer: {e}")
