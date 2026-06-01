@@ -22,14 +22,18 @@
  * SIGTERM/SIGINT handlers disconnect the Kafka consumer cleanly,
  * ensuring in-flight messages are committed before the process exits.
  * Critical in Docker environments where compose sends SIGTERM on `down`.
+ *
+ * ES Modules:
+ * This service uses native ES Modules (import/export) — the current
+ * Node.js standard. "type": "module" in package.json enables this globally.
  */
 
-const express = require('express');
-const morgan  = require('morgan');
+import express from 'express';
+import morgan  from 'morgan';
 
-const { connect }        = require('./db/connection');
-const kafkaConsumer      = require('./consumers/kafkaConsumer');
-const analyticsRouter    = require('./routes/analytics');
+import { connect }     from './db/connection.js';
+import * as consumer   from './consumers/kafkaConsumer.js';
+import analyticsRouter from './routes/analytics.js';
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -54,7 +58,7 @@ const start = async () => {
     await connect();
 
     // 2. Start Kafka consumer — begins polling for inference events
-    await kafkaConsumer.start();
+    await consumer.start();
 
     // 3. Start HTTP server — ready to serve analytics queries
     app.listen(PORT, () => {
@@ -73,9 +77,11 @@ const start = async () => {
 };
 
 // ── Graceful shutdown ────────────────────────────────────────────────────────
+// Docker sends SIGTERM on `docker compose down` — we catch it to flush
+// the Kafka consumer and avoid losing in-flight messages.
 const shutdown = async (signal) => {
   console.log(`\n🛑 ${signal} received — shutting down gracefully...`);
-  await kafkaConsumer.stop();
+  await consumer.stop();
   process.exit(0);
 };
 

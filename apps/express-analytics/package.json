@@ -1,11 +1,17 @@
 {
   "name": "express-analytics",
   "version": "1.0.0",
+  "description": "Analytics service — consumes LLM inference events from Kafka and persists to MongoDB",
   "main": "src/index.js",
   "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
   "dependencies": {
     "express": "^4.19.0",
     "mongoose": "^8.1.0",
-    "kafkajs": "^2.2.4"
+    "kafkajs": "^2.2.4",
+    "morgan": "^1.10.0"
   }
 }
