@@ -58,13 +58,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Create dummy .env for compose validation
+        # The compose file requires a .env with all variables defined.
+        # In CI there's no real .env (and there shouldn't be — secrets
+        # don't belong in the repo). We create a dummy with placeholder
+        # values so docker compose config can resolve all variables
+        # and validate the structure without needing real credentials.
+        run: |
+          cat > .env << 'EOF'
+          DB_USER=ci_user
+          DB_PASSWORD=ci_password
+          DB_NAME=ci_db
+          DB_HOST=dashboard_db
+          ORACLE_PASSWORD=ci_oracle
+          ORACLE_XE_DB=XEPDB1
+          MONGO_USER=ci_admin
+          MONGO_PASSWORD=ci_mongo
+          MONGO_DB=ci_analytics
+          DATABASE_URL=postgresql://ci_user:ci_password@dashboard_db:5432/ci_db
+          SECRET_KEY=ci_secret_key_32_chars_minimum_xx
+          ALGORITHM=HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES=30
+          GEMINI_API_KEY=ci_gemini_key
+          JWT_SECRET=ci_jwt_secret
+          LAMBDA_URL=https://example.com/lambda
+          EOF
+
       - name: Validate docker-compose.yml structure
         run: docker compose config --quiet
         # --quiet suppresses the full resolved config output
         # Exit code 0 = valid, non-zero = error
 
       - name: Check all service build contexts exist
-        # Verifies that every `build: context:` path actually
+        # Verifies that every build context path actually
         # exists in the repo — catches renamed/moved directories
         run: |
           echo "🔍 Checking build contexts..."
@@ -91,12 +117,8 @@ jobs:
   # JOB 2: Python Linting — FastAPI + LLM Gateway
   # ============================================================
   # Uses ruff — the fastest Python linter (written in Rust).
-  # Replaces flake8 + isort + pyupgrade in one tool.
   # Catches: syntax errors, undefined names, unused imports,
   # common bugs (mutable defaults, etc.)
-  #
-  # We lint both Python services independently since they have
-  # separate requirements and might have different issues.
   python-lint:
     name: 🐍 Python Lint (ruff)
     runs-on: ubuntu-latest
@@ -114,8 +136,6 @@ jobs:
         run: pip install ruff
 
       - name: Lint FastAPI backend
-        # --select E,F: pycodestyle errors + pyflakes (syntax, undefined names)
-        # --ignore E501: skip line-length (handled by formatter, not linter)
         run: |
           echo "🔍 Linting FastAPI backend..."
           ruff check apps/dashboard-admin/backend/ \
@@ -123,8 +143,6 @@ jobs:
             --ignore E501,W503 \
             --exclude "*/migrations/*,*/alembic/*" \
             || true
-          # `|| true` — warn but don't fail for now
-          # Remove when codebase is lint-clean
 
       - name: Lint LLM Gateway
         run: |
@@ -135,15 +153,10 @@ jobs:
             || true
 
   # ============================================================
-  # JOB 3: Node.js Linting — Express Analytics + GraphQL Gateway
+  # JOB 3: Node.js Syntax Check — Express Analytics + GraphQL
   # ============================================================
-  # Runs eslint on both Node services.
-  # If no .eslintrc exists, falls back to basic syntax check
-  # via node --check (parses the file without executing it).
-  #
-  # Why separate from compose validation?
-  # Jobs run in parallel — Python and Node lint run simultaneously
-  # while compose validation runs. Total CI time stays low.
+  # node --check parses JS without executing it.
+  # Catches syntax errors and invalid ES module imports.
   node-lint:
     name: 🟨 Node.js Lint
     runs-on: ubuntu-latest
@@ -158,8 +171,6 @@ jobs:
           node-version: '20'
 
       - name: Syntax check — Express Analytics
-        # node --check parses JS without executing it
-        # Catches: syntax errors, invalid ES module imports
         run: |
           echo "🔍 Checking Express Analytics syntax..."
           find apps/express-analytics/src -name "*.js" | while read f; do
@@ -177,13 +188,7 @@ jobs:
   # JOB 4: Angular Unit Tests
   # ============================================================
   # The only formal test suite in the project.
-  # Runs ng test in headless Chrome mode (no display needed).
-  #
-  # Note: Angular tests run in the CI environment's Chrome.
-  # The ChromeHeadlessNoSandbox config is required in CI
-  # because the GitHub runner doesn't have a sandbox environment.
-  # This was already configured in the Angular project —
-  # it's the same config used for local headless testing.
+  # Runs ng test in headless Chrome — no display needed in CI.
   angular-tests:
     name: 🅰️ Angular Unit Tests
     runs-on: ubuntu-latest
@@ -202,11 +207,7 @@ jobs:
       - name: Install Angular dependencies
         working-directory: apps/dashboard-admin/frontend
         run: npm ci
-        # npm ci is faster than npm install in CI —
-        # uses package-lock.json exactly, no version resolution
 
       - name: Run Angular unit tests (headless)
         working-directory: apps/dashboard-admin/frontend
         run: npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox
-        # --watch=false: run once and exit (not interactive mode)
-        # ChromeHeadlessNoSandbox: required in CI environments
