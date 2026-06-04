@@ -245,8 +245,9 @@ was apparently among the best the recruiter had seen. Fell short on the coding r
 Google retained my profile. The process taught me more about my own strengths
 and gaps than any resource online. 0 regrets.
 
-Also reached final stages at Amazon, Microsoft, IBM, and Capital One during the
-same period. None converted. Each one sharpened something.
+Also reached final rounds at Amazon, Microsoft, and IBM during the same period.
+Capital One made it to the technical exam — didn't pass, one round short of the
+final. None converted. Each one sharpened something.
 
 ---
 
