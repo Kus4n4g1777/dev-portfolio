@@ -29,6 +29,9 @@ jobs:
 
       - name: Create dummy .env and validate compose structure
         run: |
+          # 1. Force remove any existing/committed .env (destroys broken symlinks)
+          rm -f .env
+
           # Write dummy .env — all in one step so the file exists
           # in the same shell that runs docker compose config
           echo "DB_USER=ci_user" > .env
@@ -52,7 +55,8 @@ jobs:
           cat .env
 
           echo "🐳 Running docker compose config..."
-          docker compose config --quiet
+          # 2. Explicitly bind the env file to force interpolation and path resolution
+          docker compose --env-file .env config --quiet
           echo "✅ Compose structure is valid"
 
       - name: Check all service build contexts exist
