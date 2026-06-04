@@ -29,33 +29,33 @@ jobs:
 
       - name: Create dummy .env and validate compose structure
         run: |
-          # 1. Force remove any existing/committed .env (destroys broken symlinks)
+          echo "🧹 Cleaning up any ghost .env files..."
           rm -f .env
 
-          # Write dummy .env — all in one step so the file exists
-          # in the same shell that runs docker compose config
-          echo "DB_USER=ci_user" > .env
-          echo "DB_PASSWORD=ci_password" >> .env
-          echo "DB_NAME=ci_db" >> .env
-          echo "DB_HOST=dashboard_db" >> .env
-          echo "ORACLE_PASSWORD=ci_oracle" >> .env
-          echo "ORACLE_XE_DB=XEPDB1" >> .env
-          echo "MONGO_USER=ci_admin" >> .env
-          echo "MONGO_PASSWORD=ci_mongo" >> .env
-          echo "MONGO_DB=ci_analytics" >> .env
-          echo "DATABASE_URL=postgresql://ci_user:ci_password@dashboard_db:5432/ci_db" >> .env
-          echo "SECRET_KEY=ci_secret_key_32_chars_minimum_xx" >> .env
-          echo "ALGORITHM=HS256" >> .env
-          echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
-          echo "GEMINI_API_KEY=ci_gemini_key" >> .env
-          echo "JWT_SECRET=ci_jwt_secret" >> .env
-          echo "LAMBDA_URL=https://example.com/lambda" >> .env
+          echo "📝 Writing dummy .env file..."
+          cat << 'EOF' > .env
+          DB_USER=ci_user
+          DB_PASSWORD=ci_password
+          DB_NAME=ci_db
+          DB_HOST=dashboard_db
+          ORACLE_PASSWORD=ci_oracle
+          ORACLE_XE_DB=XEPDB1
+          MONGO_USER=ci_admin
+          MONGO_PASSWORD=ci_mongo
+          MONGO_DB=ci_analytics
+          DATABASE_URL=postgresql://ci_user:ci_password@dashboard_db:5432/ci_db
+          SECRET_KEY=ci_secret_key_32_chars_minimum_xx
+          ALGORITHM=HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES=30
+          GEMINI_API_KEY=ci_gemini_key
+          JWT_SECRET=ci_jwt_secret
+          LAMBDA_URL=https://example.com/lambda
+          EOF
 
-          echo "✅ .env created at $(pwd)/.env"
-          cat .env
+          echo "🔍 Verifying .env exists on the runner:"
+          ls -la .env
 
           echo "🐳 Running docker compose config..."
-          # 2. Explicitly bind the env file to force interpolation and path resolution
           docker compose --env-file .env config --quiet
           echo "✅ Compose structure is valid"
 
