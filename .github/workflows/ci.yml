@@ -30,24 +30,24 @@ jobs:
 
       - name: Create dummy .env for compose validation
         run: |
-          cat > .env << 'EOF'
-DB_USER=ci_user
-DB_PASSWORD=ci_password
-DB_NAME=ci_db
-DB_HOST=dashboard_db
-ORACLE_PASSWORD=ci_oracle
-ORACLE_XE_DB=XEPDB1
-MONGO_USER=ci_admin
-MONGO_PASSWORD=ci_mongo
-MONGO_DB=ci_analytics
-DATABASE_URL=postgresql://ci_user:ci_password@dashboard_db:5432/ci_db
-SECRET_KEY=ci_secret_key_32_chars_minimum_xx
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-GEMINI_API_KEY=ci_gemini_key
-JWT_SECRET=ci_jwt_secret
-LAMBDA_URL=https://example.com/lambda
-EOF
+          echo "DB_USER=ci_user" > .env
+          echo "DB_PASSWORD=ci_password" >> .env
+          echo "DB_NAME=ci_db" >> .env
+          echo "DB_HOST=dashboard_db" >> .env
+          echo "ORACLE_PASSWORD=ci_oracle" >> .env
+          echo "ORACLE_XE_DB=XEPDB1" >> .env
+          echo "MONGO_USER=ci_admin" >> .env
+          echo "MONGO_PASSWORD=ci_mongo" >> .env
+          echo "MONGO_DB=ci_analytics" >> .env
+          echo "DATABASE_URL=postgresql://ci_user:ci_password@dashboard_db:5432/ci_db" >> .env
+          echo "SECRET_KEY=ci_secret_key_32_chars_minimum_xx" >> .env
+          echo "ALGORITHM=HS256" >> .env
+          echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
+          echo "GEMINI_API_KEY=ci_gemini_key" >> .env
+          echo "JWT_SECRET=ci_jwt_secret" >> .env
+          echo "LAMBDA_URL=https://example.com/lambda" >> .env
+          echo "✅ .env created:"
+          cat .env
 
       - name: Validate docker-compose.yml structure
         run: docker compose config --quiet
