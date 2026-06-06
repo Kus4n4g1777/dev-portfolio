@@ -1,7 +1,6 @@
 # Stage 1: Build Angular
 FROM node:20 AS build
 
-# 🔽 UPDATED: Added libgbm1 and libvulkan1 to the initial install list
 RUN apt-get update && apt-get install -yq \
     gconf-service \
     libasound2 \
@@ -41,44 +40,36 @@ RUN apt-get update && apt-get install -yq \
     lsb-release \
     xdg-utils \
     wget \
-    # 💥 ADDED MISSING CHROME DEPENDENCIES 💥
     libgbm1 \
     libvulkan1 \
     --no-install-recommends \
-    # Download and install Google Chrome
     && wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-    # Install the package
     && dpkg -i google-chrome-stable_current_amd64.deb \
-    # Fix any remaining broken dependencies (just in case)
     && apt-get -f install --yes \
-    # Clean up
     && rm google-chrome-stable_current_amd64.deb
 
 WORKDIR /app
 
-# Copy package files and install dependencies
 COPY package.json package-lock.json ./
 RUN npm install
 
-# Copy the rest of the frontend source
 COPY . .
 
-# 💥 RUN JASMINE/KARMA TESTS (Using our new launcher) 💥
 RUN npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox
 
-# Build Angular for production
 RUN npx ng build --configuration production
 
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
 
-
-# Copy Angular build output to Nginx html folder
-# (Update 'dashboard-admin' if your project name is different in angular.json)
 COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 
-# Expose port
+# ── SPA routing fix ──────────────────────────────────────────────────────────
+# Angular uses client-side routing — NGINX must serve index.html for all routes
+# and let Angular's router handle navigation. Without this, refreshing on any
+# route other than / returns 404 because NGINX looks for a physical directory.
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 EXPOSE 80
 
-# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]

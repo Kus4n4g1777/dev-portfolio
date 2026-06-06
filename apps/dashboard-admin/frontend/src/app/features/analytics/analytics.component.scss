@@ -1,0 +1,137 @@
+.analytics-dashboard {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.dashboard-header {
+  margin-bottom: 2rem;
+
+  h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .subtitle {
+    color: #666;
+    margin-top: 0.25rem;
+  }
+}
+
+.panel {
+  background: #1e1e2e;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #cdd6f4;
+
+  h2 {
+    margin: 0 0 0.25rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .panel-subtitle {
+    color: #6c7086;
+    font-size: 0.8rem;
+    margin: 0 0 1.25rem;
+  }
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.metric-card {
+  background: #313244;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  &.highlight .metric-value {
+    color: #a6e3a1;
+    font-size: 2rem;
+  }
+
+  .metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .metric-label {
+    font-size: 0.75rem;
+    color: #6c7086;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+.runtime-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.runtime-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: #313244;
+  border-radius: 8px;
+
+  .runtime-badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #1e1e2e;
+    min-width: 130px;
+    text-align: center;
+  }
+
+  .runtime-count {
+    color: #cdd6f4;
+    font-size: 0.875rem;
+  }
+
+  .runtime-latency {
+    margin-left: auto;
+    color: #6c7086;
+    font-size: 0.8rem;
+  }
+}
+
+.logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.log-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: #313244;
+  border-radius: 6px;
+  font-size: 0.8rem;
+
+  .log-runtime { font-weight: 600; min-width: 130px; }
+  .log-latency { color: #cdd6f4; min-width: 70px; }
+  .log-cache   { min-width: 80px; }
+  .log-detections { color: #6c7086; }
+  .log-time    { margin-left: auto; color: #6c7086; }
+}
+
+.loading {
+  color: #6c7086;
+  font-style: italic;
+}
