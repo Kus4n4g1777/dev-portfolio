@@ -82,28 +82,28 @@ class DetectionBufferService:
             return f"""Tengo {detection_count} detecciones de corazones con {avg_confidence*100:.1f}% de confianza.
 
 Responde con MÁXIMO 2 líneas, tono alegre y seguro.
-Ejemplo: "¡Perfecto! Esos corazones están clarísimos. Detección impecable 💪❤️"
+Ejemplo: "¡Perfecto! Esos corazones están clarísimos. Detección impecable 💪❤"
 """
         
         elif avg_confidence >= 0.75:
             return f"""Tengo {detection_count} detecciones de corazones con {avg_confidence*100:.1f}% de confianza.
 
 Responde con MÁXIMO 2 líneas, tono positivo con ligero humor.
-Ejemplo: "¡Muy bien! Corazones detectados con confianza. Tu pulso está tranquilo 😊❤️"
+Ejemplo: "¡Muy bien! Corazones detectados con confianza. Tu pulso está tranquilo 😊❤"
 """
         
         elif avg_confidence >= 0.60:
             return f"""Tengo {detection_count} detecciones de corazones con {avg_confidence*100:.1f}% de confianza.
 
 Responde con MÁXIMO 2 líneas, tono ligeramente bromista.
-Ejemplo: "¡Ahí vamos! Corazones detectados. ¿Un poco nervioso quizás? 😅❤️"
+Ejemplo: "¡Ahí vamos! Corazones detectados. ¿Un poco nervioso quizás? 😅❤"
 """
         
         elif avg_confidence >= 0.45:
             return f"""Tengo {detection_count} detecciones de corazones con {avg_confidence*100:.1f}% de confianza.
 
 Responde con MÁXIMO 2 líneas, tono bromista/irónico.
-Ejemplo: "Hmm... creo que veo corazones... o tal vez no. ¿Mano temblorosa? 🤔❤️"
+Ejemplo: "Hmm... creo que veo corazones... o tal vez no. ¿Mano temblorosa? 🤔❤"
 """
         
         elif avg_confidence >= 0.40:
@@ -136,13 +136,18 @@ Ejemplo: "Eso NO son corazones, amigo. ¿Café derramado? ¿Manchas de tinta? �
             self.ai_calls += 1
             return result['response'], result['runtime']
         else:
-            # All runtimes failed
             return "Error: Todos los modelos fallaron 😅", "none"
     
     def _process_buffer(self) -> Dict:
         """
-        Process buffered detections
-        Returns response (cached or from AI)
+        Process buffered detections.
+        Returns response dict — either from LRU cache or fresh LLM call.
+
+        Fix (2025-06): Added explicit 'cache_hit' boolean to both return paths.
+        Previously the Kafka producer read result.get("cache_hit", False) and
+        always got False because neither return dict included the key — making
+        cache hit rate appear as 0% in the analytics dashboard even when the
+        LRU cache was serving responses correctly.
         """
         if not self.buffer:
             return None
@@ -166,10 +171,13 @@ Ejemplo: "Eso NO son corazones, amigo. ¿Café derramado? ¿Manchas de tinta? �
             processed_buffer = self.buffer.copy()
             self.buffer = []
             
+            logger.info(f"⚡ Cache HIT | latency: {latency_ms:.2f}ms")
+
             return {
                 'source': 'cache',
                 'response': cached_response,
                 'runtime': 'cache',
+                'cache_hit': True,          # ← FIX: was missing, kafka producer needs this
                 'avg_confidence': avg_confidence,
                 'confidence_bucket': bucket,
                 'detection_count': detection_count,
@@ -178,26 +186,26 @@ Ejemplo: "Eso NO son corazones, amigo. ¿Café derramado? ¿Manchas de tinta? �
             }
         
         # Cache miss - call AI
-        logger.info("⏳ Cache miss - calling Gemini API...")
+        logger.info("⏳ Cache miss - calling LLM...")
         
         prompt = self._generate_adaptive_prompt(avg_confidence, detection_count)
         
-        # FIXED: Synchronous call (no async loop issues)
         ai_response, runtime_used = self._call_llm_with_fallback(prompt)
         
         latency_ms = (time.time() - start_time) * 1000
         self.latencies['gemini_call'].append(latency_ms)
         
-        # Cache the response
+        # Cache the response for next time
         self.cache.put(avg_confidence, ai_response)
         
         processed_buffer = self.buffer.copy()
         self.buffer = []
         
         return {
-            'source': 'gemini',  # ← Cambiar a 'llm'
+            'source': 'llm',
             'response': ai_response,
-            'runtime': runtime_used,  # ← NUEVO!
+            'runtime': runtime_used,
+            'cache_hit': False,             # ← FIX: was missing, kafka producer needs this
             'avg_confidence': avg_confidence,
             'confidence_bucket': bucket,
             'detection_count': detection_count,
