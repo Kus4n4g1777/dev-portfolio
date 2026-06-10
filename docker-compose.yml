@@ -341,6 +341,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # ===========================
+  # LangGraph Agent Service
+  # ===========================
+  langgraph-agent:
+    build: ./apps/langgraph-agent
+    container_name: langgraph_agent
+    restart: always
+    volumes:
+      - ./apps/langgraph-agent/app:/app  # Real time sync
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # Reuse vars to build Conection URL
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - portfolio_net
+
 networks:
   portfolio_net:
     name: portfolio-network

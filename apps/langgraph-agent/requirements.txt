@@ -1,0 +1,6 @@
+langgraph>=0.0.65
+langchain-google-genai>=1.0.6
+langchain-core>=0.2.1
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.30
+python-dotenv==1.0.1
