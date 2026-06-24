@@ -1,0 +1,77 @@
+{
+  "sprint": "Iteration 3",
+  "issues": [
+    {
+      "title": "HEALTH-42: Insanity – Week 3 Day 5 Cardio Power & Resistance",
+      "body": "Daily Insanity workout.\n\nProgram: Insanity\nWeek: 3\nDay: 5\nWorkout: Cardio Power & Resistance\n\nGoal: Complete the full session, focusing on cleaner jumps, soft landings, and fewer long breaks than in previous weeks.",
+      "type": "Story",
+      "epic": "EPIC-HEALTH-1: Insanity + Dig Deeper – Month 1",
+      "storyPoints": 2,
+      "labels": ["HEALTH", "Insanity"],
+      "assignees": ["Kus4n4g1777"]
+    },
+    {
+      "title": "HEALTH-46: Dig Deeper – Week 3 Steady State Cardio 1",
+      "body": "Daily Dig Deeper workout.\n\nProgram: Dig Deeper\nWeek: 3\nWorkout: Steady State Cardio 1 (optional)\n\nGoal: Add one steady state cardio session in zone 2 to support fat loss and recovery without overloading the legs.",
+      "type": "Story",
+      "epic": "EPIC-HEALTH-1: Insanity + Dig Deeper – Month 1",
+      "storyPoints": 1,
+      "labels": ["HEALTH", "Dig Deeper"],
+      "assignees": ["Kus4n4g1777"]
+    },
+    {
+      "title": "ALG-01: Sliding window warm‑up (3 easy problems)",
+      "body": "Algorithms practice.\n\nPattern: Sliding Window.\n\nGoal: Solve 3 easy sliding window problems (arrays or strings), then write a short explanation of the pattern, common pitfalls, and time complexity for each.\n\nDeliverables:\n- 3 solved problems.\n- Notes describing when to use sliding window and why it is better than brute force in these cases.",
+      "type": "Task",
+      "epic": "EPIC-ALG-1: Algorithms & problem‑solving refresh",
+      "storyPoints": 5,
+      "labels": ["ALG", "Pattern"],
+      "assignees": ["Kus4n4g1777"]
+    },
+    {
+      "title": "ARCH-03: Prepare one 5‑minute system design mini‑pitch (follow‑up)",
+      "body": "Architecture practice.\n\nGoal: Refine and rehearse a 5‑minute system design pitch using the current LLM analytics system (YOLO → FastAPI → Kafka → Express + Mongo → GraphQL → clients).\n\nTasks:\n- Improve the written outline from the previous iteration.\n- Practice the spoken version in English, focusing on clarity and trade‑offs.\n- Note 2–3 improvements compared to the first version.",
+      "type": "Task",
+      "epic": "EPIC-ARCH-1: Architecture & patterns deep‑dive",
+      "storyPoints": 5,
+      "labels": ["ARCH", "System design"],
+      "assignees": ["Kus4n4g1777"]
+    },
+    {
+      "title": "ENG-03: Technical vocabulary list for current stack",
+      "body": "English / interview practice.\n\nGoal: Build and practice a one‑page glossary in English for the current stack (Docker, Kafka, LLM gateway, GraphQL, Flutter state management, analytics pipeline).\n\nTasks:\n- List 15–20 key technical terms.\n- For each, write a 1–2 sentence explanation as if speaking to an interviewer.\n- Read the list out loud at least once.",
+      "type": "Task",
+      "epic": "EPIC-ENG-1: Interview & English practice",
+      "storyPoints": 3,
+      "labels": ["ENG", "Interview"],
+      "assignees": ["Kus4n4g1777"]
+    },
+    {
+      "title": "CODE-15: Add or create an AI Agent for the project",
+      "body": "Core dev work.\n\nGoal: Add an AI Agent component to the Dev Portfolio – LLM Gateway system (e.g., LangGraph agent) that can orchestrate tools like GitHub issue creation and analytics.\n\nTasks:\n- Define the agent interface and supported tools.\n- Integrate the agent service into the Docker Compose stack.\n- Expose at least one API endpoint that the frontends can call.",
+      "type": "Task",
+      "epic": "EPIC-DEV-1: LLM Gateway & agents",
+      "storyPoints": 8,
+      "labels": ["CODE", "LLM", "Agent"],
+      "assignees": ["Kus4n4g1777"]
+    },
+    {
+      "title": "NUTR-06: Day 6 – Controlled normal day + one thing you love",
+      "body": "Nutrition / weight‑loss.\n\nGoal: Eat a mostly normal day but with controlled portions, especially for tortillas and rice, while allowing one small treat.\n\nRules:\n- Max 3 flour tortillas total for the day.\n- Small rice portions at lunch only.\n- Choose ONE extra you love (a bit more rice, one sweet item, etc.) and enjoy it without guilt, but only once.\n- No sugary drinks; water, coffee, or tea with minimal or no sugar.",
+      "type": "Story",
+      "epic": "EPIC-HEALTH-2: Weekly weight‑loss nutrition (simple home meals)",
+      "storyPoints": 3,
+      "labels": ["HEALTH", "Nutrition"],
+      "assignees": ["Kus4n4g1777"]
+    },
+    {
+      "title": "CI/CD-01: Automate GitHub Actions tasks",
+      "body": "CI/CD and tooling.\n\nGoal: Automate recurring GitHub Actions tasks and improve developer experience.\n\nTasks:\n- Identify the most common manual checks you run (lint, tests, Docker validation).\n- Create or update GitHub Actions workflows to run these on push/PR.\n- Document how to trigger and monitor the workflows.\n- Ensure workflows are integrated with the Dev Portfolio – LLM Gateway project board.",
+      "type": "Task",
+      "epic": "EPIC-3: CI/CD & tooling",
+      "storyPoints": 5,
+      "labels": ["CI/CD", "documentation"],
+      "assignees": ["Kus4n4g1777"]
+    }
+  ]
+}

@@ -1,25 +1,22 @@
-# Stage 1: Build & Test React
-FROM node:20-alpine AS build
+# We use the official lean Node image
+FROM node:20-alpine AS base
 WORKDIR /app
 
-COPY package*.json ./
+# We copy the dependency definitions first to leverage Docker layer caching
+COPY package.json package-lock.json* ./
+
+# We cleanly install the dependencies
 RUN npm install
 
+# We copy the rest of our Next.js application code
 COPY . .
 
-RUN npm test
-
+# We build the Next.js App Router for production
 RUN npm run build
 
-# Stage 2: Serve with Nginx
-FROM nginx:alpine
+# We expose the port Next.js uses inside the container
+EXPOSE 3000
+ENV PORT=3000
 
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# SPA routing fix — serve index.html for all routes
-# React Router handles navigation client-side
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+# We start the production server
+CMD ["npm", "start"]

@@ -35,19 +35,24 @@ services:
         condition: service_healthy
 
   # ===========================
-  # Portfolio Frontend (React)
+  # Portfolio Frontend (React / Next.js)
   # ===========================
   portfolio_frontend:
     build:
       context: ./apps/portfolio
     container_name: portfolio_frontend
     ports:
-      - "3001:80"
+      - "3001:3000" # Next.js defaults to 3000 inside the container
+    environment:
+      - NEXT_PUBLIC_GRAPHQL_URL=http://graphql-gateway:4000/graphql
+      - FASTAPI_INTERNAL_URL=http://dashboard_backend:8000
     networks:
       - portfolio_net
     depends_on:
-      dashboard_backend:
+      graphql-gateway:
         condition: service_healthy
+      dashboard_backend:
+        condition: service_healthy  
 
   # ===========================
   # Dashboard Backend (FastAPI)
@@ -260,6 +265,33 @@ services:
       - portfolio_net
 
   # ===========================
+  # Django Audit Service
+  # ===========================
+  django-audit:
+    build: ./apps/django-audit
+    container_name: django_audit
+    restart: always
+    ports:
+      - "8005:8000"
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC=llm.inference.events
+      - DEBUG=False
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - portfolio_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================
   # MongoDB (Analytics Store)
   # ===========================
   mongodb:
@@ -326,6 +358,7 @@ services:
       - ANALYTICS_URL=http://express_analytics:3000
       - JWT_SECRET=${JWT_SECRET}
       - NODE_ENV=development
+      - DJANGO_AUDIT_URL=http://django_audit:8000
     depends_on:
       dashboard_backend:
         condition: service_healthy
@@ -333,10 +366,12 @@ services:
         condition: service_healthy
       express-analytics:
         condition: service_healthy
+      django-audit:
+        condition: service_healthy
     networks:
       - portfolio_net
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/.well-known/apollo/server-health || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4000', (res) => process.exit(0)).on('error', () => process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 5

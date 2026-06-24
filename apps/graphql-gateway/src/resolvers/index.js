@@ -42,6 +42,18 @@ export const resolvers = {
       return context.springboot.getUserById(id);
     },
 
+    auditLogs: async (_, { limit }, context) => {
+      requireAuth(context);
+      const res = await fetch(`http://django_audit:8000/api/logs/?limit=${limit}`);
+      if (!res.ok) return [];
+      const logs = await res.json();
+      return logs.map((log) => ({
+        ...log,
+        id: String(log.id),
+        payload: JSON.stringify(log.payload),
+      }));
+    },
+
     llmHistory: async (_, { limit }, context) => {
       requireAuth(context);
       // Placeholder — conectar al LLM gateway cuando esté listo

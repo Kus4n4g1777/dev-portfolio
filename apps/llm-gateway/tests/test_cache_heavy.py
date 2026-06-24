@@ -90,7 +90,8 @@ def test_massive_cache_hits():
     
     print(f"\n⚡ Latency:")
     print(f"   Avg cache hit:   {stats['latency']['avg_cache_hit_ms']:.2f}ms")
-    print(f"   Avg Gemini call: {stats['latency']['avg_gemini_call_ms']:.2f}ms")
+    avg_g = stats["latency"].get("avg_gemini_call_ms", 0)
+    print(f"   Avg Gemini call: {avg_g:.2f}ms")
     print(f"   Speedup factor:  {stats['latency']['speedup_factor']:.0f}x")
     
     print(f"\n💾 Cache:")

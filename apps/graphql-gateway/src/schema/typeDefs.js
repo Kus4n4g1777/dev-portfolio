@@ -32,6 +32,14 @@ export const typeDefs = `#graphql
     uptime: Float
   }
 
+  # ─── AUDIT DOMAIN (Django) ─────────────────
+  type AuditLog {
+    id: ID!
+    event_type: String!
+    payload: String!
+    timestamp: String!
+  }
+
   # ─── LLM DOMAIN (LLM Gateway) ──────────────
   type LLMResponse {
     id: ID!
@@ -50,6 +58,9 @@ export const typeDefs = `#graphql
     # Dashboard
     dashboardStats: DashboardStats!
     servicesHealth: [HealthStatus!]!
+
+    # Audit (Django)
+    auditLogs(limit: Int = 50): [AuditLog!]!
 
     # Users (Spring Boot)
     users: [User!]!

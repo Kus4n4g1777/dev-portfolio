@@ -313,7 +313,15 @@ Example: "Those are definitely NOT hearts, my friend. Spilled coffee? Ink stains
         }
     
     def clear_buffer(self):
-        """Clear current buffer without processing"""
+        """Clear current buffer AND cache AND stats for clean test isolation"""
         cleared_count = len(self.buffer)
         self.buffer = []
+        # Reset LRU cache completely
+        self.cache = LRUCache(capacity=self.cache.capacity)
+        # Reset all stats counters
+        self.total_detections = 0
+        self.ai_calls = 0
+        self.cached_responses = 0
+        self.confidence_distribution = {k: 0 for k in self.confidence_distribution}
+        self.latencies = {"cache_hit": [], "llm_call": []}
         return cleared_count
