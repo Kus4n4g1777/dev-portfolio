@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { loginAction } from '../../actions/auth';
+import { loginAction } from '../../../actions/auth';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -23,7 +23,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-sm p-8 rounded-3xl bg-gradient-to-br from-[#4b276b]/60 to-[#1a1025]/80 backdrop-blur-xl border border-white/10 shadow-2xl">
+    <div className="w-full max-w-sm my-auto p-8 rounded-3xl bg-gradient-to-br from-[#4b276b]/60 to-[#1a1025]/80 backdrop-blur-xl border border-white/10 shadow-2xl">
       <h1 className="text-3xl font-bold text-center text-white mb-8 drop-shadow-lg">
         Hearts & Stars Detector
       </h1>

@@ -42,16 +42,22 @@ export const resolvers = {
       return context.springboot.getUserById(id);
     },
 
-    auditLogs: async (_, { limit }, context) => {
+    auditLogs: async (_, { limit = 20, offset = 0, runtime = '', cache = '' }, context) => {
       requireAuth(context);
-      const res = await fetch(`http://django_audit:8000/api/logs/?limit=${limit}`);
-      if (!res.ok) return [];
-      const logs = await res.json();
-      return logs.map((log) => ({
-        ...log,
-        id: String(log.id),
-        payload: JSON.stringify(log.payload),
-      }));
+      const params = new URLSearchParams({ limit, offset });
+      if (runtime) params.append('runtime', runtime);
+      if (cache)   params.append('cache', cache);
+      const res = await fetch(`http://django_audit:8000/api/logs/?${params}`);
+      if (!res.ok) return { total: 0, logs: [] };
+      const data = await res.json();
+      return {
+        total: data.total,
+        logs: data.logs.map((log) => ({
+          ...log,
+          id: String(log.id),
+          payload: JSON.stringify(log.payload),
+        })),
+      };
     },
 
     llmHistory: async (_, { limit }, context) => {

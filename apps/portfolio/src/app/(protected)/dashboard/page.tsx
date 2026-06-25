@@ -1,4 +1,4 @@
-import { fetchGraphQL } from '../../lib/graphql';
+import { fetchGraphQL } from '../../../lib/graphql';
 import { cookies } from 'next/headers';
 
 // We define our exact GraphQL query to pull live analytics

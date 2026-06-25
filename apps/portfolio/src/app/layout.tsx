@@ -25,7 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </nav>
         )}
         
-        <main className="relative z-10 w-full max-w-5xl mx-auto p-4 flex flex-col items-center justify-center min-h-[90vh]">
+        <main className="relative z-10 w-full max-w-5xl mx-auto p-4 flex flex-col items-center justify-start min-h-[90vh]">
           {children}
         </main>
       </body>

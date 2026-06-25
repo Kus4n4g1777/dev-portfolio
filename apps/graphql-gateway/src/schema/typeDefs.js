@@ -40,6 +40,11 @@ export const typeDefs = `#graphql
     timestamp: String!
   }
 
+  type AuditLogsResult {
+    total: Int!
+    logs: [AuditLog!]!
+  }
+
   # ─── LLM DOMAIN (LLM Gateway) ──────────────
   type LLMResponse {
     id: ID!
@@ -60,7 +65,7 @@ export const typeDefs = `#graphql
     servicesHealth: [HealthStatus!]!
 
     # Audit (Django)
-    auditLogs(limit: Int = 50): [AuditLog!]!
+    auditLogs(limit: Int = 20, offset: Int = 0, runtime: String, cache: String): AuditLogsResult!
 
     # Users (Spring Boot)
     users: [User!]!
