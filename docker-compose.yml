@@ -52,7 +52,7 @@ services:
       graphql-gateway:
         condition: service_healthy
       dashboard_backend:
-        condition: service_healthy  
+        condition: service_healthy
 
   # ===========================
   # Dashboard Backend (FastAPI)
@@ -383,12 +383,16 @@ services:
     build: ./apps/langgraph-agent
     container_name: langgraph_agent
     restart: always
+    ports:
+      - "8003:8003"
     volumes:
       - ./apps/langgraph-agent/app:/app  # Real time sync
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       # Reuse vars to build Conection URL
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}          # ← for create_weekly_issues
+      - GITHUB_REPOSITORY=Kus4n4g1777/dev-portfolio
     depends_on:
       db:
         condition: service_healthy

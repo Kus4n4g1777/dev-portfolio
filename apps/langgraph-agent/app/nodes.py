@@ -5,8 +5,8 @@ os.environ["GOOGLE_API_KEY"] = os.environ.get("GEMINI_API_KEY", "")
 from typing import Literal
 from langgraph.graph import END
 from langchain_google_genai import ChatGoogleGenerativeAI
-from .state import AgentState
-from .tools import tool_node
+from state import AgentState
+from tools import tool_node
 
 # We initialize our LLM. We are using Gemini for its great reasoning capabilities
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")

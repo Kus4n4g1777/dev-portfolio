@@ -17,8 +17,11 @@ RUN apt-get update \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar source code
+# Copy source code
 COPY ./app /app
 
-# Default command to keep the container alive while we develop
-CMD ["tail", "-f", "/dev/null"]
+# Expose FastAPI port
+EXPOSE 8003
+
+# Run FastAPI agent API
+CMD ["uvicorn", "main_api:api", "--host", "0.0.0.0", "--port", "8003", "--reload"]
