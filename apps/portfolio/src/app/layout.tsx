@@ -19,6 +19,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <nav className="w-full flex justify-center gap-8 py-4 bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
             <Link href="/dashboard" className="hover:text-orange-400 transition-colors">Dashboard</Link>
             <Link href="/audit" className="hover:text-orange-400 transition-colors">Audit Logs</Link>
+            <Link href="/agent" className="hover:text-orange-400 transition-colors">AI Agent 🤖</Link>
             <form action={logoutAction}>
               <button type="submit" className="text-gray-400 hover:text-red-400 transition-colors">Logout</button>
             </form>

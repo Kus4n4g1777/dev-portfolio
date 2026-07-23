@@ -44,6 +44,7 @@ services:
     ports:
       - "3001:3000" # Next.js defaults to 3000 inside the container
     environment:
+      - NEXT_PUBLIC_AGENT_URL=http://localhost:8003
       - NEXT_PUBLIC_GRAPHQL_URL=http://graphql-gateway:4000/graphql
       - FASTAPI_INTERNAL_URL=http://dashboard_backend:8000
     networks:
