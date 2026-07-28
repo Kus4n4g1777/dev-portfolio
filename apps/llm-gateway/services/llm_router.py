@@ -10,6 +10,8 @@ from typing import Optional, Dict, Tuple
 import google.generativeai as genai
 import requests
 
+import boto3
+import json as json_lib
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,7 @@ class LLMRouter:
             "go",
             "ollama",
             "gemini-1.5-pro",
+            "bedrock-nova",
         ]
         
         self.current_index = 0
@@ -91,6 +94,41 @@ class LLMRouter:
         except Exception as e:
             logger.error(f"Ollama failed (should never happen!): {e}")
             return None
+
+    def _call_bedrock(self, prompt: str) -> Optional[str]:
+        try:
+            client = boto3.client(
+                "bedrock-runtime",
+                region_name=os.getenv("AWS_REGION", "us-east-1"),
+                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            )
+            model_id = os.getenv("BEDROCK_MODEL_ID", "amazon.nova-micro-v1:0")
+
+            body = json_lib.dumps({
+                "messages": [
+                    {"role": "user", "content": [{"text": prompt}]}
+                ],
+                "inferenceConfig": {
+                    "maxTokens": 150,
+                    "temperature": 0.7,
+                    "topP": 0.9,
+                }
+            })
+
+            response = client.invoke_model(
+                modelId=model_id,
+                body=body,
+                contentType="application/json",
+                accept="application/json",
+            )
+
+            result = json_lib.loads(response["body"].read())
+            return result["output"]["message"]["content"][0]["text"].strip()
+
+        except Exception as e:
+            logger.warning(f"Bedrock failed: {str(e)[:150]}")
+            return None
     
     def _try_runtime(self, runtime: str, prompt: str) -> Tuple[Optional[str], bool]:
         logger.info(f"🎯 Calling {runtime}...")
@@ -105,6 +143,8 @@ class LLMRouter:
             response = self._call_go(prompt)
         elif runtime == "ollama":
             response = self._call_ollama(prompt)
+        elif runtime == "bedrock-nova":
+            response = self._call_bedrock(prompt)
         else:
             response = None
         

@@ -8,6 +8,7 @@ pydantic==2.5.3
 sqlalchemy
 psycopg2-binary
 aiokafka==0.10.0
+boto3>=1.34.0
 
 # Testing dependencies
 pytest==7.4.3
