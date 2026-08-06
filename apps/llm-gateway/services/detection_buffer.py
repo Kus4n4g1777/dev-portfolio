@@ -214,6 +214,72 @@ Example: "Those are definitely NOT hearts, my friend. Spilled coffee? Ink stains
 
         return "Error: All models failed 😅", "none"
     
+    def _judge_response(
+        self, response: str, avg_confidence: float, detection_count: int
+    ) -> dict:
+        """
+        LLM-as-a-Judge — evaluates the quality of a generated AI response
+        before it leaves the gateway.
+        """
+        judge_prompt = f"""You are an AI response quality judge. Evaluate this response strictly.
+CONTEXT:
+- A YOLOv8 model processed {detection_count} detections
+- Average confidence: {avg_confidence * 100:.1f}%
+- The response should be max 2 lines, with humor/irony proportional to confidence
+
+RESPONSE TO EVALUATE:
+"{response}"
+
+Score each criterion from 1 to 10:
+1. RELEVANCE: Does the response address the detection result meaningfully?
+2. TONE: Is the humor/irony level appropriate for {avg_confidence * 100:.1f}% confidence?
+3. CONCISENESS: Is it 2 lines or fewer?
+
+Reply ONLY with this JSON format, nothing else:
+{{"relevance": <1-10>, "tone": <1-10>, "conciseness": <1-10>, "reason": "<one sentence>"}}
+"""
+        try:
+            import google.generativeai as genai
+            import json
+            
+            # We use the Gemini API key (we ensure GEMINI_API_KEY is in our .env)
+            model = genai.GenerativeModel("gemini-2.5-flash")
+            result = model.generate_content(judge_prompt)
+            
+            # We clean up potential markdown formatting from the JSON output (```json ... ```)
+            raw = result.text.strip()
+            if raw.startswith("```"):
+                raw = "\n".join(raw.split("\n")[1:-1])
+            if raw.lower().startswith("json"):
+                raw = raw[4:].strip()
+                
+            scores = json.loads(raw)
+            overall = round(
+                (scores["relevance"] + scores["tone"] + scores["conciseness"]) / 3, 2
+            )
+            
+            logger.info(
+                f"⚖️  Judge scores → relevance={scores['relevance']} "
+                f"tone={scores['tone']} conciseness={scores['conciseness']} "
+                f"overall={overall} | {scores.get('reason', '')}"
+            )
+            
+            return {
+                "relevance": scores["relevance"],
+                "tone": scores["tone"],
+                "conciseness": scores["conciseness"],
+                "overall": overall,
+                "approved": overall >= 7.0,
+                "reason": scores.get("reason", ""),
+            }
+        except Exception as e:
+            logger.warning(f"⚖️  Judge failed (non-fatal): {e}")
+            # If the judge fails due to rate limits or network issues, we approve by default 
+            # so we don't take down the gateway
+            return {
+                "relevance": 0, "tone": 0, "conciseness": 0,
+                "overall": 10.0, "approved": True, "reason": f"Judge unavailable: {e}"
+            }
     def _process_buffer(self) -> Dict:
         if not self.buffer:
             return None
@@ -257,21 +323,33 @@ Example: "Those are definitely NOT hearts, my friend. Spilled coffee? Ink stains
         latency_ms = (time.time() - start_time) * 1000
         self.latencies["llm_call"].append(latency_ms)
         
-        self.cache.put(avg_confidence, ai_response)
+        # --- NEW: LLM-as-a-Judge Step ---
+        # We evaluate the response that just came out of the LLM Router
+        judge_result = self._judge_response(ai_response, avg_confidence, detection_count)
         
-        processed_buffer = self.buffer.copy()
-        self.buffer = []
+        if not judge_result["approved"]:
+            logger.warning(f"🚫 Judge rejected response (score: {judge_result['overall']}). Using fallback.")
+            ai_response = f"Fallback: Response rejected by AI Judge due to low quality 😅 (Reason: {judge_result['reason']})"
+        else:
+            # We only cache the response if it passed the judge's audit (>= 7.0)
+            self.cache.put(avg_confidence, ai_response) 
         
-        return {
-            "source": "llm",
-            "response": ai_response,
-            "runtime": runtime_used,
-            "cache_hit": False,
-            "avg_confidence": avg_confidence,
-            "confidence_bucket": bucket,
-            "detection_count": detection_count,
-            "detections": processed_buffer,
-            "latency_ms": latency_ms,
+        processed_buffer = self.buffer.copy() 
+        self.buffer = [] 
+        
+        return { 
+            "source": "llm", 
+            "response": ai_response, 
+            "runtime": runtime_used, 
+            "cache_hit": False, 
+            "avg_confidence": avg_confidence, 
+            "confidence_bucket": bucket, 
+            "detection_count": detection_count, 
+            "detections": processed_buffer, 
+            "latency_ms": latency_ms, 
+            # --- We add the Judge's evidence to the payload ---
+            "judge_score": judge_result.get("overall"),
+            "judge_reason": judge_result.get("reason"),
         }
     
     def get_stats(self) -> Dict:
