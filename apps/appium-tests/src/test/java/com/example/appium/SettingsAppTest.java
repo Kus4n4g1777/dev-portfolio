@@ -14,9 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Minimal Appium + UiAutomator2 smoke test.
- * We drive the native Android Settings app (preinstalled on any emulator,
- * no external app install needed) to prove the automation stack works end to end:
- * Appium server -> UiAutomator2 driver -> emulator -> native UI interaction.
+ * Integrated with ReportPortal agent for enterprise-grade test automation reporting.
  */
 public class SettingsAppTest {
 
@@ -37,20 +35,11 @@ public class SettingsAppTest {
 
     @Test
     void settingsAppOpensAndListsItems() {
-        // We locate list items on the Settings home screen by their resource-id.
         List<WebElement> items = driver.findElements(
                 AppiumBy.className("android.widget.TextView")
         );
 
         assertTrue(items.size() > 0, "We expect the Settings screen to render at least one list item");
-
-        // We log the first few visible settings entries as proof of a real interaction.
-        items.stream().limit(5).forEach(el -> {
-            String text = el.getText();
-            if (text != null && !text.isBlank()) {
-                System.out.println("Found settings entry: " + text);
-            }
-        });
     }
 
     @AfterAll

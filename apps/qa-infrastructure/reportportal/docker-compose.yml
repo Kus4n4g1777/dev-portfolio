@@ -121,7 +121,7 @@ services:
     logging:
       <<: *logging
     ports:
-      - "8080:8080"  ## ReportPortal UI 
+      - "8086:8080"  ## ReportPortal UI 
       - "8085:8081"  ## Traefik dashboard
       - "443:443"    ## HTTPS
     volumes:
