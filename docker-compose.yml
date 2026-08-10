@@ -226,6 +226,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
       - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
       - DART_SERVICE_URL=http://dart-runtime:8080
       - GO_SERVICE_URL=http://go-runtime:8081
       - KAFKA_BROKERS=kafka:9092

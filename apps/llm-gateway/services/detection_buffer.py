@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 
 from .lru_cache import LRUCache
 from .llm_router import LLMRouter
+from .rag_memory import RAGMemoryBank
 
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ class DetectionBufferService:
         self.cache = LRUCache(capacity=cache_capacity)
     
         self.llm_router = LLMRouter()
+        self.rag_memory = RAGMemoryBank()
         
         self.total_detections = 0
         self.ai_calls = 0
@@ -317,7 +319,10 @@ Reply ONLY with this JSON format, nothing else:
         
         logger.info("⏳ Cache miss - calling LLM...")
         
+        historical_context = self.rag_memory.retrieve_context(bucket, avg_confidence)
         prompt = self._generate_adaptive_prompt(avg_confidence, detection_count)
+        if historical_context:
+            prompt = f"Historical pattern: {historical_context}\n\n{prompt}"
         ai_response, runtime_used = self._call_llm_with_fallback(prompt)
         
         latency_ms = (time.time() - start_time) * 1000
@@ -333,6 +338,7 @@ Reply ONLY with this JSON format, nothing else:
         else:
             # We only cache the response if it passed the judge's audit (>= 7.0)
             self.cache.put(avg_confidence, ai_response) 
+            self.rag_memory.record_event(bucket, avg_confidence, detection_count)
         
         processed_buffer = self.buffer.copy() 
         self.buffer = [] 
