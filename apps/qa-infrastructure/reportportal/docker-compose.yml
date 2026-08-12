@@ -123,7 +123,7 @@ services:
     ports:
       - "8086:8080"  ## ReportPortal UI 
       - "8085:8081"  ## Traefik dashboard
-      - "443:443"    ## HTTPS
+      - "8443:443"    ## HTTPS
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       ## SSL cert configs

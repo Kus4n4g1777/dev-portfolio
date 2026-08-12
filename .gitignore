@@ -71,6 +71,7 @@ apps/dashboard-admin/frontend-angular/
 **/pom.xml.versionsBackup
 **/dependency-reduced-pom.xml
 **/buildNumber.properties
+**/local.properties
 
 # ========== INTELLIJ IDEA (adicionales) ==========
 **/*.iws
